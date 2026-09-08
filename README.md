@@ -95,21 +95,30 @@ with `npm run deploy` — it takes about a minute and writes fresh evidence arti
 
 ## Setup
 
-Requirements: Node 20+, Python 3.11+ (3.12 recommended), a browser wallet.
+Requirements: Node 20+, **Python 3.11 or newer** (3.12 recommended), a browser wallet.
+
+The RC Python stack publishes no wheels for Python 3.9, which is still the default
+`python3` on macOS — so name the interpreter explicitly rather than relying on `python3`.
 
 ```bash
 git clone <this repo> && cd caveat
 npm install
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+
+# use a 3.11+ interpreter; on macOS with Homebrew:
+/usr/local/opt/python@3.12/bin/python3.12 -m venv .venv    # or python3.12 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+
 npm install -g genlayer@0.40.0-rc.3
 cp .env.example .env
 ```
+
+Check it took: `.venv/bin/python -V` should print 3.11 or newer.
 
 Everything below works with no keys and no accounts. Testnet keys are generated
 automatically on first deploy and written to `.env` (gitignored).
 
 ```bash
-npm run test:contract   # 68 direct tests, no network, ~45s
+npm run test:contract   # 68 direct tests, no network, ~45s (uses .venv)
 npm run lint:contract   # genvm-lint check + validate + typecheck
 npm run deploy          # deploy to Studio Next, write .env + artifacts
 npm run dev             # console on http://localhost:3000

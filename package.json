@@ -9,10 +9,11 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test:contract": "python3 -m pytest test/direct -q",
-    "test:integration": "gltest --network studio_devnet test/integration",
-    "lint:contract": "genvm-lint check contracts/caveat.py && genvm-lint validate contracts/caveat.py && genvm-lint typecheck contracts/caveat.py",
-    "deploy": "python3 scripts/deploy.py"
+    "test:contract": ".venv/bin/python -m pytest test/direct -q",
+    "test:integration": ".venv/bin/gltest --network studio_devnet test/integration",
+    "lint:contract": ".venv/bin/genvm-lint check contracts/caveat.py && .venv/bin/genvm-lint validate contracts/caveat.py && .venv/bin/genvm-lint typecheck contracts/caveat.py",
+    "deploy": ".venv/bin/python scripts/deploy.py",
+    "e2e": ".venv/bin/python scripts/e2e.py"
   },
   "dependencies": {
     "genlayer-js": "2.0.0-rc.1",
