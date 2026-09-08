@@ -1,5 +1,48 @@
 # Architecture
 
+## At a glance
+
+```mermaid
+flowchart TD
+    P([PRINCIPAL]) -->|"mandate: intent + purpose + policy"| C
+
+    subgraph C["CAVEAT Intelligent Contract — chain 61997"]
+        direction TB
+        D["Deterministic pre-checks<br/>identity · active · not expired<br/>policy unchanged · hard constraints"]
+        E["Evidence policy<br/>principal-set, frozen at activation"]
+        J["Semantic judgement<br/>narrow structured prompt"]
+        G["One-time execution gate"]
+        R["Decision receipt"]
+    end
+
+    A([AGENT]) -->|"proposed action"| D
+    D -->|"hard constraint fails"| BLOCK
+    D -->|"all fixed rules pass"| E
+    E --> GL
+
+    subgraph GL["GenLayer"]
+        W["Validator web retrieval<br/>approved sources only"]
+        L["LLM judgement"]
+        V["Validator consensus<br/>equivalence principle"]
+        W --> L --> V
+    end
+
+    V --> J
+    J --> EXEC[["EXECUTE"]]
+    J --> RECON[["RECONFIRM"]]
+    J --> BLOCK[["BLOCK"]]
+
+    EXEC --> G
+    RECON -->|"execution stays locked"| P
+    P -->|"fresh authority"| G
+    G -->|"consume_approval<br/>replay rejected"| S["Settlement<br/>Sepolia / Solana devnet<br/>verified before recorded"]
+
+    EXEC --> R
+    RECON --> R
+    BLOCK --> R
+    S --> R
+```
+
 ## The primitive
 
 CAVEAT is a checkpoint that sits between an agent's *authority* and its *execution*.
