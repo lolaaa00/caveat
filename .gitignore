@@ -1,0 +1,23 @@
+# Secrets — never commit
+.env
+.env.local
+*.pem
+*.key
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+.vercel
+
+# Build + test artifacts
+artifacts/*
+!artifacts/.gitkeep
+.DS_Store

@@ -1,0 +1,18 @@
+# CAVEAT — gltest configuration.
+# Studio Next / Studio-dev preview, chain 61997. Never point this at StudioNet 61999.
+networks:
+  studio_devnet:
+    id: 61997
+    url: https://studio-dev.genlayer.com/api
+    accounts:
+      - ${CAVEAT_PRINCIPAL_PRIVATE_KEY}
+      - ${CAVEAT_AGENT_PRIVATE_KEY}
+    from_account: ${CAVEAT_PRINCIPAL_PRIVATE_KEY}
+    default_wait_interval: 3000
+    default_wait_retries: 60
+
+paths:
+  contracts: contracts
+  artifacts: artifacts
+
+environment: .env
