@@ -1,0 +1,78 @@
+@import 'tailwindcss';
+
+/*
+  CAVEAT visual identity: financial infrastructure, not a chat product.
+  Dense grid, monospaced data, one accent per meaning. No gradients, no illustrations.
+*/
+@theme {
+  --color-void: #08090b;
+  --color-surface: #0e1013;
+  --color-panel: #13161a;
+  --color-raised: #191d22;
+  --color-line: #23282f;
+  --color-line-strong: #333a43;
+
+  --color-ink: #e8ebef;
+  --color-ink-dim: #9aa3ae;
+  --color-ink-faint: #646d78;
+
+  --color-execute: #12b981;
+  --color-execute-dim: #0b3d2c;
+  --color-reconfirm: #eba135;
+  --color-reconfirm-dim: #43310e;
+  --color-block: #ef4a45;
+  --color-block-dim: #451614;
+  --color-signal: #5b8cff;
+
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+  --font-sans: ui-sans-serif, -apple-system, 'Segoe UI', Inter, system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-void);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Small capitalised field labels, the spine of the console layout. */
+.label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  line-height: 1.2;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+
+.datum {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.rule {
+  border-top: 1px solid var(--color-line);
+}
+
+/* Hairline grid used behind the checkpoint header. */
+.grid-faint {
+  background-image:
+    linear-gradient(to right, var(--color-line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--color-line) 1px, transparent 1px);
+  background-size: 32px 32px;
+  opacity: 0.28;
+}
+
+a {
+  text-decoration: none;
+}
+
+::selection {
+  background: var(--color-signal);
+  color: #fff;
+}
