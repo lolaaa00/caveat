@@ -1,0 +1,31 @@
+{
+  "name": "caveat",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A context-aware execution checkpoint for autonomous agents, on GenLayer.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test:contract": "python3 -m pytest test/direct -q",
+    "test:integration": "gltest --network studio_devnet test/integration",
+    "lint:contract": "genvm-lint check contracts/caveat.py && genvm-lint validate contracts/caveat.py && genvm-lint typecheck contracts/caveat.py",
+    "deploy": "python3 scripts/deploy.py"
+  },
+  "dependencies": {
+    "genlayer-js": "2.0.0-rc.1",
+    "next": "^15.5.25",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.3.3",
+    "@types/node": "^26.5.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2"
+  }
+}
