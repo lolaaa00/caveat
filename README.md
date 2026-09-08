@@ -82,13 +82,26 @@ none of them; it reads state and submits signed transactions.
 | --- | --- |
 | Network | GenLayer Studio Next / Studio-dev |
 | Chain ID | **61997** |
-| Contract | [`0x30fDfBD74eD29b32fD4E413210415048633eCC22`](https://explorer-studio-dev.genlayer.com/address/0x30fDfBD74eD29b32fD4E413210415048633eCC22) |
-| Deployment tx | [`0x871a7f4c…cd62a58`](https://explorer-studio-dev.genlayer.com/tx/0x871a7f4cb642805b6e65f29afb65a315cdd83345a6ac2b9e33c2a32dccd62a58) |
+| Contract | [`0x2938cAB99274b9fd6Fab7F3dd5b968c6F0b240C4`](https://explorer-studio-dev.genlayer.com/address/0x2938cAB99274b9fd6Fab7F3dd5b968c6F0b240C4) |
+| Deployment tx | [`0x4ff55f92…014dec5`](https://explorer-studio-dev.genlayer.com/tx/0x4ff55f9282e87b5227e63711db40c95df4791a790b0fa4f3af209f6d0014dec5) |
 | Consensus / execution | `MAJORITY_AGREE` / `SUCCESS` |
 | Evidence | `artifacts/deployment.studio_devnet.json`, `artifacts/e2e.studio_devnet.json` |
 
 Studio Next is a resettable preview network. If the deployment has been reset, redeploy
 with `npm run deploy` — it takes about a minute and writes fresh evidence artifacts.
+
+**Proven on chain** (see `test/integration/` and `artifacts/`): deployment, mandate
+creation and activation, proposal submission, `BLOCK` from deterministic checks with no
+model call, live evidence retrieval and semantic judgement under validator consensus
+returning a structured verdict, principal reconfirmation, the one-time approval, and a
+rejected replay.
+
+**Not yet demonstrated on chain:** a semantic `EXECUTE`. That needs an approved evidence
+source that actually states the conference opening time, and GenLayer validators fetch
+the source themselves — so it has to be publicly reachable, which a local dev server is
+not. The pages are ready in `public/evidence/`; host them (deploy the app, or set
+`NEXT_PUBLIC_EVIDENCE_BASE_URL` to any public https origin serving them) and Scenario B
+completes. `EXECUTE` is fully covered in the direct tests today.
 
 > Studio Next (61997) is **not** StudioNet (61999). They are different deployments with
 > different chain IDs, and evidence from one is not evidence for the other.
