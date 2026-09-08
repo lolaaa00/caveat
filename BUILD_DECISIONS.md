@@ -124,3 +124,11 @@ Recorded so they are not re-litigated later.
    first-party pages live in `public/evidence/` and are served by the app once deployed;
    `NEXT_PUBLIC_EVIDENCE_BASE_URL` overrides the origin. Until the app is hosted somewhere
    public, on-chain scenario runs need a public https source.
+
+10. **gltest clears its configured artifacts directory.** It had been pointed at
+    `artifacts/`, and an integration run deleted the committed deployment and lifecycle
+    evidence. gltest now writes to `build/gltest`; `artifacts/` holds evidence only.
+
+11. **macOS `python3` is 3.9 and the RC stack has no wheels for it.** The npm scripts call
+    `.venv/bin/python` explicitly so a clean clone fails loudly at venv creation rather
+    than confusingly at import time.
