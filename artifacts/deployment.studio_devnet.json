@@ -1,0 +1,10 @@
+{
+  "network": "studio_devnet",
+  "chain_id": 61997,
+  "contract_address": "0x2938cAB99274b9fd6Fab7F3dd5b968c6F0b240C4",
+  "deployment_tx": "0x4ff55f9282e87b5227e63711db40c95df4791a790b0fa4f3af209f6d0014dec5",
+  "deployer": "0x19Fbc43de9F8dbcE33FBa7ad34e9F4eE49E565E1",
+  "deployed_at": "2026-09-08T19:54:43.904148+00:00",
+  "explorer_contract": "https://explorer-studio-dev.genlayer.com/address/0x2938cAB99274b9fd6Fab7F3dd5b968c6F0b240C4",
+  "explorer_tx": "https://explorer-studio-dev.genlayer.com/tx/0x4ff55f9282e87b5227e63711db40c95df4791a790b0fa4f3af209f6d0014dec5"
+}

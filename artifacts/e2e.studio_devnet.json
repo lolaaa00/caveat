@@ -1,0 +1,34 @@
+{
+  "contract_address": "0x2938cAB99274b9fd6Fab7F3dd5b968c6F0b240C4",
+  "evidence_source": "https://example.com/",
+  "mandate_id": "MND-0001",
+  "scenarios": {
+    "c": {
+      "proposal": "CAV-0002",
+      "verdict": "BLOCK"
+    }
+  },
+  "transactions": [
+    {
+      "label": "create_mandate",
+      "tx": "0xb7b2af53cdab094964dc027d00d56e888a5d65b9fc43b186043479e9bc4c33c9",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0xb7b2af53cdab094964dc027d00d56e888a5d65b9fc43b186043479e9bc4c33c9"
+    },
+    {
+      "label": "activate_mandate",
+      "tx": "0x5a21a7849cdc3ee71729f399438c2b822c88679d3b5ef0647d0ceb10303df576",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x5a21a7849cdc3ee71729f399438c2b822c88679d3b5ef0647d0ceb10303df576"
+    },
+    {
+      "label": "submit_proposal",
+      "tx": "0xe312f9915077124a66bfc2200e98d3b00bd30b15f3e9690150d444cf1a0a7a6f",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0xe312f9915077124a66bfc2200e98d3b00bd30b15f3e9690150d444cf1a0a7a6f"
+    },
+    {
+      "label": "evaluate_proposal",
+      "tx": "0x0cf3ce2c75eecee4c8f149f435f319dafd5e2f9b55a06f3e15bfafa09bbc88f2",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x0cf3ce2c75eecee4c8f149f435f319dafd5e2f9b55a06f3e15bfafa09bbc88f2"
+    }
+  ],
+  "ran_at": "2026-09-08T19:55:43.427577+00:00"
+}

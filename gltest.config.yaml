@@ -13,6 +13,8 @@ networks:
 
 paths:
   contracts: contracts
-  artifacts: artifacts
+  # gltest manages this directory itself and clears it between runs, so keep it away
+  # from artifacts/, which holds committed deployment and lifecycle evidence.
+  artifacts: build/gltest
 
 environment: .env
