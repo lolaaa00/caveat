@@ -41,7 +41,7 @@ Studio Next proof. The environments have different chain IDs and different deplo
 | Frontend | Next.js + TypeScript (App Router) | Spec default; routing suits mandate/proposal/receipt pages |
 | Styling | Tailwind CSS, hand-rolled components | No UI library; execution-terminal aesthetic |
 | Wallet | Injected EIP-1193 (MetaMask) on chain 61997 | No browser-generated private keys, ever |
-| Fees | GenLayer Transaction Kit (v0.6 fee approval + tracking) | Fees are the headline v0.6 change; never hardcode fee numbers |
+| Fees | genlayer-js RC fee estimation (`estimateTransactionFees`) | Fees are the headline v0.6 change; quotes are always live, never hardcoded |
 | Persistence | On-chain + browser-local convenience only | No backend, no service that can become a source of truth |
 | Testing | `gltest` direct tests + `gltest --network studio_devnet` integration | Real RPC, real consensus, real receipts |
 | Deployment | Deployment-agnostic build; frontend host chosen Day 8 | Free tier only, no card |
@@ -79,3 +79,48 @@ needs money, it gets cut or replaced, not billed.
 5. Fail closed: unavailable evidence cannot produce `EXECUTE`.
 6. Execution approval is one-time. Replay is rejected by the contract.
 7. `FINALIZED` alone is never treated as success — consensus outcome **and** GenVM execution result are both checked.
+
+## Findings that changed the plan
+
+Recorded so they are not re-litigated later.
+
+1. **Transaction Kit is not a published package.** `genlayerlabs/genlayer-transaction-kit`
+   is a private monorepo (`"private": true`, workspace packages) and nothing matching it
+   exists on npm. The frontend therefore calls `genlayer-js@2.0.0-rc.1` directly and takes
+   its fee quote from `client.estimateTransactionFees()`. Fee values are never hardcoded.
+   Revisit if the kit is published.
+
+2. **Deployments and writes revert without a FeesDistribution.** The first deploy attempt
+   failed with `FeesDistributionMissing`. Every write in the scripts, tests and frontend
+   now carries a live quote.
+
+3. **`FINALIZED` is not success, and finalization is too slow to wait on.** Consensus
+   outcome and GenVM execution result are checked separately everywhere. Waits target the
+   *decided* outcome: finalization on Studio Next lags well past a demo's patience, and a
+   wait for it timed out on a transaction that had already been accepted.
+
+4. **`gl.vm.get_timestamp()` is not implemented in gltest's direct runner.** The contract
+   reads transaction time from `gl.message.raw['datetime']`, which is deterministic per
+   transaction and works in both real GenVM and direct tests.
+
+5. **Integer type aliases are not callable.** `u256`/`u32` are `typing.Annotated[int, …]`.
+   `u256(0)` raises at runtime. They are annotations only.
+
+6. **`prompt_non_comparative` cannot be exercised in direct tests.** Its leader path issues
+   an `ExecPromptTemplate` call that gltest's direct runner does not mock, so it always
+   fails locally. Evidence extraction uses `prompt_comparative` with a strict principle
+   instead — one mechanism, identical in tests and production.
+
+7. **gltest's LLM mock pre-parses JSON.** `exec_prompt(response_format='json')` expects
+   JSON *text* on the wire and parses it inside the SDK, so the mock's pre-parsed dict is
+   rejected as "JSON result is not text". Tests double-encode via one documented helper;
+   the contract keeps the stronger `response_format='json'`.
+
+8. **Per-transaction fee quoting rate-limits Studio.** `sim_getFeeConfig` started failing
+   mid-suite. Quotes are cached briefly and retried.
+
+9. **The evidence source must be publicly reachable.** GenLayer validators fetch the
+   approved source themselves, so a `localhost` origin cannot serve it. The demo's
+   first-party pages live in `public/evidence/` and are served by the app once deployed;
+   `NEXT_PUBLIC_EVIDENCE_BASE_URL` overrides the origin. Until the app is hosted somewhere
+   public, on-chain scenario runs need a public https source.
