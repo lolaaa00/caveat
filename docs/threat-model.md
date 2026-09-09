@@ -116,16 +116,39 @@ clear — never to a silent rejection.
 
 **Attack.** Payment is made first and the checkpoint becomes decorative.
 
-**Mitigation.** `record_settlement` rejects any proposal that has not reached
-`EXECUTE_APPROVED` *and* had its one-time approval consumed. The transaction is verified
-against a public RPC — success status, stated payee, sufficient amount — before it is
-recorded, and an unverifiable hash is refused rather than stored. Testnet rails only.
+**Mitigation.** The gate is the only thing that produces an authorization artifact, so
+until an approval is consumed there is nothing for a payment to reference. The artifact
+binds the proposal, the mandate policy judged against, the evidence, and the moment of
+consumption — and on Sepolia it travels in the payment's calldata, so the link between
+decision and payment is checkable on chain.
 
-**Tested.** `test/direct/test_settlement.py` (14 tests, both rails, every refusal path).
+Deliberately, the contract does **not** verify payments. GenLayer is the adjudication
+layer: making it read third-party RPCs to confirm transfers would widen its trust surface
+and make the adjudicator a participant in settlement. Verification belongs to the
+executor, and is done against the settling chain itself.
+
+**Tested.** `test/direct/test_authorization_artifact.py` — the contract exposes no payment
+surface, the decision record carries no payment state, the artifact binds the decision and
+differs per authorization, and a locked or refused decision produces none.
+
+## 11. A payment presented as authorized when it was not
+
+**Attack.** An executor claims a payment was authorized by a CAVEAT decision when no
+approval was ever consumed, or points at an unrelated transaction.
+
+**Mitigation.** The artifact is derived from contract state, so a verifier can recompute
+it from the public receipt and compare. On Sepolia it is carried in the payment's own
+calldata. Client-side verification checks success status, the stated payee and a
+sufficient amount, and reports failure rather than assuming success — a verification that
+cannot complete is never rendered as settled.
+
+**Limitation.** This proves a payment references a decision. It does not prove the payee
+was the right merchant; choosing the payee is the executor's responsibility.
 
 ## Accepted limitations
 
 - **Model quality.** Consensus reduces variance; it does not make the judgement infallible. This is why `RECONFIRM` hands the decision back to a human rather than silently proceeding.
 - **First-party source trust.** CAVEAT verifies that the approved source says something, not that the source is honest. Source selection is the principal's judgement.
-- **Settlement verification depth.** Confirmation comes from a public RPC read, not from an on-chain light client. It proves the transaction exists, succeeded, and paid the stated payee.
+- **Settlement verification depth.** Confirmation comes from a public RPC read, not from an on-chain light client, and it happens in the executor rather than in consensus. It proves the transaction exists, succeeded, and paid the stated payee.
+- **Local settlement records.** The payment record is browser-local and non-authoritative. It is always re-verified against the chain, so losing or tampering with it cannot change a decision or fake a settlement.
 - **Studio Next is a preview network.** State is resettable by design; deployments are not permanent.

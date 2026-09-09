@@ -21,20 +21,33 @@ export const isConfigured = () => CONTRACT_ADDRESS.startsWith('0x') && CONTRACT_
 export const explorerTx = (hash: string) => `${EXPLORER_URL}/tx/${hash}`;
 export const explorerAddress = (address: string) => `${EXPLORER_URL}/address/${address}`;
 
-/** Settlement rails the contract will verify. Testnets only. */
+/**
+ * Settlement rails. Testnets only, keyless public RPCs only.
+ *
+ * These are read and verified client-side. The Intelligent Contract knows nothing about
+ * them: it is a decision layer and does not move or verify value.
+ */
 export const SETTLEMENT_RAILS = {
   sepolia: {
     label: 'Sepolia',
     chainIdHex: '0xaa36a7',
+    chainName: 'Sepolia',
+    rpcUrl: 'https://ethereum-sepolia-rpc.publicnode.com',
     decimals: 18,
     symbol: 'SepoliaETH',
+    faucet: 'https://cloud.google.com/application/web3/faucet/ethereum/sepolia',
+    walletPayable: true,
     explorerTx: (hash: string) => `https://sepolia.etherscan.io/tx/${hash}`,
   },
   'solana-devnet': {
     label: 'Solana devnet',
     chainIdHex: null,
+    chainName: 'Solana devnet',
+    rpcUrl: 'https://api.devnet.solana.com',
     decimals: 9,
     symbol: 'devnet SOL',
+    faucet: 'https://faucet.solana.com/',
+    walletPayable: false,
     explorerTx: (hash: string) => `https://explorer.solana.com/tx/${hash}?cluster=devnet`,
   },
 } as const;

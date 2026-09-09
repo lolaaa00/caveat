@@ -57,9 +57,16 @@ Run **Scenario B**: same mandate, arrival **06:45**.
 
 # EXECUTE
 
-Consume the approval → **one-time approval consumed**. Click it again:
+Consume the approval → **one-time approval consumed**, and the contract returns the
+authorization artifact. Click it again:
 
 > Rejected on chain. Approval already consumed.
+
+If you want to show the payment leg, note what it is and is not:
+
+> GenLayer decided this. It does not settle it. The payment goes out on a testnet from my
+> own wallet, carrying that authorization digest, and gets verified against that chain —
+> the adjudication layer is not involved in moving the money.
 
 ## Step 6 — explicit prohibition (10s)
 

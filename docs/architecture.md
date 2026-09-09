@@ -35,12 +35,11 @@ flowchart TD
     EXEC --> G
     RECON -->|"execution stays locked"| P
     P -->|"fresh authority"| G
-    G -->|"consume_approval<br/>replay rejected"| S["Settlement<br/>Sepolia / Solana devnet<br/>verified before recorded"]
+    G -->|"authorization artifact"| X["Executor — outside GenLayer<br/>payment on Sepolia / Solana devnet<br/>verified against that chain"]
 
     EXEC --> R
     RECON --> R
     BLOCK --> R
-    S --> R
 ```
 
 ## The primitive
@@ -92,20 +91,34 @@ CAVEAT is a checkpoint that sits between an agent's *authority* and its *executi
                         │                   ▼
                         │            mandate commitment re-issued
                         ▼
-                 consume_approval  →  settlement (Sepolia / Solana devnet),
-                 (replay rejected)     verified before it is recorded
+                 consume_approval  →  authorization artifact  →  executor,
+                 (replay rejected)      outside GenLayer: payment on Sepolia /
+                                        Solana devnet, verified against that chain
                         │
                         ▼
                  Decision receipt: mandate · proposal · checks · evidence digest
                                    · verdict · reason · timestamps · settlement
 ```
 
+## The boundary
+
+GenLayer is the **decision and adjudication layer**, and nothing more. It answers one
+question — may this action execute, given the mandate and the world as it is now — and
+emits a single-use authorization artifact when the answer is yes.
+
+It does not move value, hold value, or verify payments. Putting payment verification
+inside the contract would make the adjudicator a participant in settlement, widen its
+trust surface to third-party RPCs, and couple a durable decision to a transient payment.
+So the contract stops at the gate, and execution happens behind it, carrying the
+authorization artifact as proof it was permitted.
+
 ## Layers
 
 | Layer | Where | Responsibility |
 | --- | --- | --- |
 | Intelligent Contract | `contracts/caveat.py`, GenLayer chain 61997 | All state, all deterministic checks, all evidence retrieval, all verdicts, the execution gate, the receipts |
-| Console | `app/`, `components/`, `lib/` | Reads authoritative state, submits signed transactions, displays decisions. Computes nothing |
+| Console | `app/`, `components/`, `lib/` | Reads authoritative state, submits signed transactions, displays decisions. Computes no verdicts |
+| Executor | `lib/settlement/` | The payment leg, behind the gate. Signs with the user's wallet, verifies against the settling chain. Never part of adjudication |
 | Scripts | `scripts/` | Deployment and end-to-end lifecycle runs; produce evidence artifacts |
 | Tests | `test/direct`, `test/integration` | In-process behaviour, then the same behaviour on the real network |
 
@@ -145,4 +158,4 @@ Deterministic checks run first, unconditionally, and a hard-constraint failure r
 | Model returns an unusable verdict | `JUDGEMENT_INCONCLUSIVE`, surfaced as `RECONFIRM` |
 | Mandate policy re-issued under a pending proposal | `Policy unchanged` check fails → `BLOCK` |
 | Approval already consumed | The second attempt reverts on chain |
-| Settlement hash unverifiable | Refused, not stored |
+| Settlement unverifiable | Never displayed as settled. This is an executor concern; the decision is already final and unaffected |

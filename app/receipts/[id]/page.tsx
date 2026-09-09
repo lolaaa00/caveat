@@ -2,9 +2,12 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import { SETTLEMENT_RAILS, type SettlementRail } from '@/lib/config';
 import * as caveat from '@/lib/genlayer/caveat';
 import { useChainData } from '@/lib/genlayer/useChainData';
+import { getSettlement } from '@/lib/settlement/store';
+import type { Settlement } from '@/lib/types';
 import { Badge, Empty, Mono } from '@/components/ui/primitives';
 
 const when = (seconds: number) =>
@@ -27,6 +30,12 @@ const Line = ({ label, value }: { label: string; value: React.ReactNode }) => (
 /** An immutable decision receipt, read back from the contract. */
 export default function Receipt() {
   const params = useParams<{ id: string }>();
+  const [settlement, setSettlement] = useState<Settlement | null>(null);
+
+  useEffect(() => {
+    setSettlement(getSettlement(params.id));
+  }, [params.id]);
+
   const { data, loading, error } = useChainData(async () => {
     const proposal = await caveat.getProposal(params.id);
     const mandate = proposal ? await caveat.getMandate(proposal.mandate_id) : null;
@@ -41,9 +50,7 @@ export default function Receipt() {
 
   const { proposal, mandate } = data;
   const verdict = (proposal.verdict || 'RECONFIRM') as keyof typeof TONE;
-  const rail = proposal.settlement
-    ? SETTLEMENT_RAILS[proposal.settlement.chain as SettlementRail]
-    : null;
+  const rail = settlement ? SETTLEMENT_RAILS[settlement.chain as SettlementRail] : null;
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -138,37 +145,49 @@ export default function Receipt() {
             ) : null}
           </div>
 
-          {proposal.settlement ? (
+          {settlement ? (
             <div className="rule mt-5 pt-4">
-              <div className="label mb-2">Settlement</div>
-              <Line label="Rail" value={rail?.label ?? proposal.settlement.chain} />
-              <Line label="Payee" value={proposal.settlement.payee} />
-              <Line label="Amount (minor units)" value={proposal.settlement.amount_minor} />
-              <Line label="Verification" value={proposal.settlement.detail} />
+              <div className="flex flex-wrap items-baseline justify-between gap-2">
+                <div className="label">Settlement</div>
+                <span className="label">outside the adjudication layer</span>
+              </div>
+              <Line label="Rail" value={rail?.label ?? settlement.chain} />
+              <Line label="Payee" value={settlement.payee} />
+              <Line label="Amount (minor units)" value={settlement.amountMinor} />
+              <Line label="Verification" value={settlement.detail} />
+              {settlement.authorization ? (
+                <Line label="Authorized by" value={settlement.authorization} />
+              ) : null}
               <Line
                 label="Transaction"
                 value={
                   rail ? (
                     <a
-                      href={rail.explorerTx(proposal.settlement.tx_hash)}
+                      href={rail.explorerTx(settlement.txHash)}
                       target="_blank"
                       rel="noreferrer"
                       className="text-signal hover:underline"
                     >
-                      {proposal.settlement.tx_hash}
+                      {settlement.txHash}
                     </a>
                   ) : (
-                    proposal.settlement.tx_hash
+                    settlement.txHash
                   )
                 }
               />
+              <p className="mt-2 text-[11px] text-ink-faint">
+                Verified directly against {rail?.label ?? settlement.chain}. The contract holds
+                no payment state: it decided, and this executed behind the gate.
+              </p>
             </div>
           ) : null}
         </div>
       </div>
 
       <p className="mt-4 text-center">
-        <Mono>Read from the Intelligent Contract. Not computed by this page.</Mono>
+        <Mono>
+          The decision is read from the Intelligent Contract. Not computed by this page.
+        </Mono>
       </p>
     </div>
   );

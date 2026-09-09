@@ -48,20 +48,35 @@ Studio Next proof. The environments have different chain IDs and different deplo
 
 Frontend / persistence / deployment were not answered, so the spec's own defaults apply.
 
-## Payment rail (added Day 1 by request)
+## Payment rail (added Day 1 by request; corrected Day 2)
 
-The spec's "no payment rail" exclusion is overridden by explicit instruction. Scope is kept to
-the **settlement leg of the execution gate** — not a payments product:
+The spec's "no payment rail" exclusion is overridden by explicit instruction. Scope is the
+**settlement leg behind the execution gate** — not a payments product.
 
-- **Sepolia (EVM)** and **Solana devnet** testnet value transfers, signed by the principal's own
-  wallet. No custody, no key handling by CAVEAT, no mainnet.
-- Ordering is enforced by the contract: a settlement can only be recorded against a proposal that
-  reached `EXECUTE_APPROVED` **and** had its one-time approval consumed. Payment can never precede
-  the verdict.
-- Settlement is **verified**, not asserted: the contract confirms the transaction through a
-  non-deterministic read against a free keyless public RPC
-  (`https://api.devnet.solana.com`, `https://ethereum-sepolia-rpc.publicnode.com`) under an
-  equivalence principle. A tx hash that does not verify is not recorded as settled.
+**Correction, Day 2:** the first implementation verified payments *inside* the Intelligent
+Contract, via non-deterministic reads against Sepolia and Solana RPCs. That was wrong.
+**GenLayer is the decision and adjudication layer only.** It does not move value, hold value,
+or verify payments. Payment verification in the contract made the adjudicator a participant in
+settlement, widened its trust surface to third-party RPCs, and coupled a durable decision to a
+transient payment.
+
+The corrected boundary:
+
+- The contract's output is a verdict and, for `EXECUTE`, a single-use **authorization artifact**
+  returned by `consume_approval`, binding the proposal, the mandate policy judged against, the
+  evidence digest and the consumption time. There is no `settle`, `pay`, `transfer` or
+  `verify_payment` on the contract, and `test_authorization_artifact.py` enforces that.
+- **Sepolia (EVM)** and **Solana devnet** transfers are signed by the principal's own wallet.
+  No custody, no key handling by CAVEAT, no mainnet.
+- On Sepolia the authorization artifact travels in the payment's calldata, so the payment
+  references the decision that permitted it — verifiable by anyone, with GenLayer uninvolved.
+- Verification happens **client-side** against the settling chain's own free keyless public RPC
+  (`https://ethereum-sepolia-rpc.publicnode.com`, `https://api.devnet.solana.com`). An
+  unverifiable hash is never shown as settled.
+- The settlement record is browser-local and non-authoritative, and is re-verified against the
+  chain rather than trusted.
+- Ordering holds because the gate holds: with no consumed approval there is no artifact to pay
+  against.
 - Zero cost: Sepolia and Solana devnet funds come from free faucets.
 
 ## Zero-cost commitment
@@ -78,7 +93,8 @@ needs money, it gets cut or replaced, not billed.
 4. Fixtures may supply evidence and action inputs. Fixtures may never supply verdicts, consensus, transaction status or contract state.
 5. Fail closed: unavailable evidence cannot produce `EXECUTE`.
 6. Execution approval is one-time. Replay is rejected by the contract.
-7. `FINALIZED` alone is never treated as success — consensus outcome **and** GenVM execution result are both checked.
+7. GenLayer adjudicates; it never settles. No payment state, payment verification or value transfer belongs on the contract.
+8. `FINALIZED` alone is never treated as success — consensus outcome **and** GenVM execution result are both checked.
 
 ## Findings that changed the plan
 

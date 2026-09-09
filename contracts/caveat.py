@@ -20,6 +20,11 @@ Design rules enforced here, not in the client:
   * The domain model is generic (mandate / proposal / action_type / action_payload /
     evidence policy / semantic conditions). Travel is an adapter on top, not a
     dependency of the primitive.
+
+This contract is a decision and adjudication layer. It does not move value, hold value,
+or verify payments. Its output is a verdict and, for EXECUTE, a single-use authorization
+artifact. Whatever executes the action -- a payment on another chain, an API call, a
+booking -- happens outside, behind the gate, and is not this contract's concern.
 """
 
 import datetime
@@ -67,13 +72,6 @@ MAX_EVIDENCE_QUESTIONS = 4
 MAX_PAGE_CHARS = 6000
 MAX_CLAIM_CHARS = 240
 MAX_RATIONALE_CHARS = 400
-
-# Settlement rails. Testnets only, keyless public RPCs only, so verification costs
-# nothing and needs no API key. A mainnet rail is deliberately absent.
-SETTLEMENT_RAILS = {
-    'sepolia': 'https://ethereum-sepolia-rpc.publicnode.com',
-    'solana-devnet': 'https://api.devnet.solana.com',
-}
 
 _NUMERIC_OPS = ('lte', 'lt', 'gte', 'gt')
 _ALL_OPS = _NUMERIC_OPS + ('eq', 'neq', 'in', 'not_in', 'is_true', 'is_false')
@@ -284,134 +282,6 @@ def _extract_claim(question: str, answer_schema: str, source_url: str) -> str:
     return _clip(claim.strip(), MAX_CLAIM_CHARS)
 
 
-def _rpc_json(rpc_url: str, request: dict) -> dict:
-    """One JSON-RPC round trip against a public testnet endpoint."""
-    response = gl.nondet.web.post(
-        rpc_url,
-        body=_canonical(request),
-        headers={'Content-Type': 'application/json'},
-    )
-    if response.status != 200 or response.body is None:
-        return {}
-    try:
-        parsed = json.loads(response.body.decode('utf-8'))
-    except (ValueError, UnicodeDecodeError):
-        return {}
-    return parsed if isinstance(parsed, dict) else {}
-
-
-def _unverified(detail: str) -> dict:
-    return {'verified': False, 'detail': detail, 'payee': '', 'amount_minor': '0', 'ref': ''}
-
-
-def _verify_evm(rpc_url: str, tx_hash: str, payee: str, amount_minor: int) -> dict:
-    """Confirm an EVM value transfer succeeded and actually paid the stated payee."""
-    receipt = _rpc_json(
-        rpc_url,
-        {'jsonrpc': '2.0', 'id': 1, 'method': 'eth_getTransactionReceipt', 'params': [tx_hash]},
-    ).get('result')
-    transaction = _rpc_json(
-        rpc_url,
-        {'jsonrpc': '2.0', 'id': 2, 'method': 'eth_getTransactionByHash', 'params': [tx_hash]},
-    ).get('result')
-
-    if not isinstance(receipt, dict) or not isinstance(transaction, dict):
-        return _unverified('transaction not found on chain')
-    if str(receipt.get('status', '')).lower() != '0x1':
-        return _unverified('transaction did not succeed on chain')
-    if receipt.get('blockNumber') in (None, ''):
-        return _unverified('transaction is not yet included in a block')
-
-    destination = str(transaction.get('to') or '').lower()
-    try:
-        value = int(str(transaction.get('value', '0x0')), 16)
-        block = int(str(receipt.get('blockNumber')), 16)
-    except ValueError:
-        return _unverified('malformed transaction fields')
-
-    if destination != payee.lower():
-        return _unverified('transaction paid a different address')
-    if value < amount_minor:
-        return _unverified('transaction paid less than the stated amount')
-
-    return {
-        'verified': True,
-        'detail': 'confirmed in block ' + str(block),
-        'payee': destination,
-        'amount_minor': str(value),
-        'ref': str(block),
-    }
-
-
-def _verify_solana(rpc_url: str, signature: str, payee: str, amount_minor: int) -> dict:
-    """Confirm a finalized Solana transfer to the stated payee."""
-    result = _rpc_json(
-        rpc_url,
-        {
-            'jsonrpc': '2.0',
-            'id': 1,
-            'method': 'getTransaction',
-            'params': [
-                signature,
-                {
-                    'encoding': 'jsonParsed',
-                    'commitment': 'finalized',
-                    'maxSupportedTransactionVersion': 0,
-                },
-            ],
-        },
-    ).get('result')
-
-    if not isinstance(result, dict):
-        return _unverified('transaction not found or not finalized')
-    meta = result.get('meta')
-    if not isinstance(meta, dict):
-        return _unverified('transaction metadata unavailable')
-    if meta.get('err') is not None:
-        return _unverified('transaction failed on chain')
-
-    transaction = result.get('transaction')
-    message = transaction.get('message') if isinstance(transaction, dict) else None
-    instructions = message.get('instructions') if isinstance(message, dict) else None
-    if not isinstance(instructions, list):
-        return _unverified('transaction instructions unavailable')
-
-    for instruction in instructions:
-        if not isinstance(instruction, dict):
-            continue
-        parsed = instruction.get('parsed')
-        if not isinstance(parsed, dict) or parsed.get('type') != 'transfer':
-            continue
-        info = parsed.get('info')
-        if not isinstance(info, dict):
-            continue
-        if str(info.get('destination', '')) != payee:
-            continue
-        try:
-            lamports = int(info.get('lamports', 0))
-        except (TypeError, ValueError):
-            continue
-        if lamports < amount_minor:
-            return _unverified('transfer paid less than the stated amount')
-        return {
-            'verified': True,
-            'detail': 'finalized transfer of ' + str(lamports) + ' lamports',
-            'payee': str(info.get('destination', '')),
-            'amount_minor': str(lamports),
-            'ref': str(result.get('slot', '')),
-        }
-
-    return _unverified('no matching transfer to the stated payee')
-
-
-def _settlement_facts(chain: str, tx_hash: str, payee: str, amount_minor: int) -> str:
-    rpc_url = SETTLEMENT_RAILS[chain]
-    if chain == 'sepolia':
-        return _canonical(_verify_evm(rpc_url, tx_hash, payee, amount_minor))
-    return _canonical(_verify_solana(rpc_url, signature=tx_hash, payee=payee,
-                                    amount_minor=amount_minor))
-
-
 def _judge(payload: str) -> str:
     """Narrow semantic judgement. Returns a JSON string."""
     prompt = (
@@ -447,11 +317,6 @@ _JUDGEMENT_PRINCIPLE = (
     'The `verdict` field must be identical. The `reason_code` and '
     '`material_changed_fact` must refer to the same underlying fact. '
     'Wording of `short_rationale` may differ.'
-)
-
-_SETTLEMENT_PRINCIPLE = (
-    'The extracted settlement facts must be byte-identical. A finalized transaction '
-    'reads the same for every validator.'
 )
 
 _EVIDENCE_PRINCIPLE = (
@@ -510,7 +375,6 @@ class Proposal:
     reconfirmed_at: u256
     approval_consumed: bool
     consumed_at: u256
-    settlement_json: str
 
 
 class Caveat(gl.contract.Contract):
@@ -708,7 +572,6 @@ class Caveat(gl.contract.Contract):
         record.reconfirmed_at = 0
         record.approval_consumed = False
         record.consumed_at = 0
-        record.settlement_json = ''
         self.proposal_ids.append(proposal_id)
         return proposal_id
 
@@ -984,7 +847,17 @@ class Caveat(gl.contract.Contract):
 
     @gl.public.write
     def consume_approval(self, proposal_id: str) -> str:
-        """One-time execution approval. A second attempt must fail."""
+        """
+        Spend the single-use execution approval and return the authorization artifact.
+
+        This is the boundary of CAVEAT's responsibility. The returned digest binds the
+        proposal, the exact mandate policy it was judged against, the evidence behind the
+        verdict, and the moment of consumption. Downstream execution carries that digest
+        as proof it was authorized by a specific decision; the contract itself neither
+        executes nor settles anything.
+
+        A second attempt must fail.
+        """
         proposal = self._proposal(proposal_id)
         mandate = self._mandate(proposal.mandate_id)
         sender = gl.message.sender_address
@@ -1011,78 +884,6 @@ class Caveat(gl.contract.Contract):
                 str(int(proposal.consumed_at)),
             ]
         )
-
-    # ---------------------------------------------------------------- settlement
-
-    @gl.public.write
-    def record_settlement(
-        self,
-        proposal_id: str,
-        chain: str,
-        tx_hash: str,
-        payee: str,
-        amount_minor: int,
-    ) -> str:
-        """
-        Record the payment that executed an approved action.
-
-        Ordering is the point: settlement is only accepted for a proposal that reached
-        EXECUTE_APPROVED *and* had its one-time approval consumed, so money can never
-        move ahead of the verdict. The transaction is verified against a public testnet
-        RPC before it is recorded; an unverifiable hash is refused, not stored.
-        """
-        proposal = self._proposal(proposal_id)
-        mandate = self._mandate(proposal.mandate_id)
-        sender = gl.message.sender_address
-
-        if sender != mandate.agent and sender != mandate.principal:
-            _fail('only the mandated agent or the principal may record settlement')
-        if proposal.status != PROPOSAL_EXECUTE_APPROVED:
-            _fail('settlement requires an approved proposal, not ' + proposal.status)
-        if not proposal.approval_consumed:
-            _fail('settlement requires a consumed execution approval')
-        if proposal.settlement_json != '':
-            _fail('settlement already recorded')
-        if chain not in SETTLEMENT_RAILS:
-            _fail('unsupported settlement chain')
-        if payee.strip() == '' or tx_hash.strip() == '':
-            _fail('payee and tx_hash are required')
-        if int(amount_minor) <= 0:
-            _fail('amount_minor must be positive')
-
-        def settlement_leader() -> str:
-            return _settlement_facts(chain, tx_hash, payee, int(amount_minor))
-
-        try:
-            raw = gl.eq_principle.strict_eq(settlement_leader)
-            facts = json.loads(raw) if isinstance(raw, str) else raw
-        except Exception:
-            facts = None
-
-        if not isinstance(facts, dict):
-            _fail('settlement verification was inconclusive')
-        if facts.get('verified') is not True:
-            _fail('settlement not verified: ' + str(facts.get('detail', 'unknown reason')))
-
-        record = {
-            'chain': chain,
-            'tx_hash': tx_hash,
-            'payee': str(facts.get('payee', payee)),
-            'amount_minor': str(facts.get('amount_minor', amount_minor)),
-            'verified': True,
-            'detail': str(facts.get('detail', '')),
-            'chain_ref': str(facts.get('ref', '')),
-            'recorded_at': _now(),
-        }
-        proposal.settlement_json = _canonical(record)
-        return proposal.settlement_json
-
-    @gl.public.view
-    def settlement_of(self, proposal_id: str) -> str:
-        proposal = self.proposals.get(proposal_id)
-        if proposal is None or proposal.settlement_json == '':
-            return ''
-        return proposal.settlement_json
 
     # ---------------------------------------------------------------- views
 
@@ -1140,7 +941,6 @@ class Caveat(gl.contract.Contract):
                 'reconfirmed_at': int(record.reconfirmed_at),
                 'approval_consumed': record.approval_consumed,
                 'consumed_at': int(record.consumed_at),
-                'settlement': json.loads(record.settlement_json) if record.settlement_json else None,
                 'executable': record.status == PROPOSAL_EXECUTE_APPROVED
                 and not record.approval_consumed,
             }
