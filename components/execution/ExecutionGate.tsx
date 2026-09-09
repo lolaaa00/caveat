@@ -1,9 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { SETTLEMENT_RAILS, type SettlementRail } from '@/lib/config';
 import * as caveat from '@/lib/genlayer/caveat';
-import type { Mandate, Proposal } from '@/lib/types';
+import { payOnSepolia, returnToChain } from '@/lib/settlement/pay';
+import { getAuthorization, getSettlement, putAuthorization, putSettlement } from '@/lib/settlement/store';
+import { verifySettlement } from '@/lib/settlement/verify';
+import type { Mandate, Proposal, Settlement } from '@/lib/types';
 import { useTx } from '@/lib/wallet/useTx';
 import type { useWallet } from '@/lib/wallet/useWallet';
 import { Badge, Button, Panel } from '@/components/ui/primitives';
@@ -110,17 +113,22 @@ export const ExecutionGate = ({ proposal, mandate, wallet, onChanged }: Props) =
       {proposal.executable && connected ? (
         <div className="space-y-3">
           <p className="text-[13px] text-ink">
-            The contract holds a single-use execution approval for this proposal. Consuming it is
-            irreversible: a second attempt is rejected on chain.
+            The contract holds a single-use execution approval for this proposal. Consuming it
+            returns the authorization artifact and is irreversible: a second attempt is rejected
+            on chain.
           </p>
           {isAgent || isPrincipal ? (
             <Button
               tone="execute"
               disabled={state.phase === 'pending'}
               onClick={() =>
-                void act('Consume approval', () =>
-                  caveat.consumeApproval(address!, proposal.proposal_id),
-                )
+                void act('Consume approval', async () => {
+                  const result = await caveat.consumeApproval(address!, proposal.proposal_id);
+                  if (typeof result.returned === 'string' && result.returned.startsWith('0x')) {
+                    putAuthorization(proposal.proposal_id, result.returned);
+                  }
+                  return result;
+                })
               }
             >
               Consume execution approval
@@ -139,7 +147,7 @@ export const ExecutionGate = ({ proposal, mandate, wallet, onChanged }: Props) =
           connected={connected}
           address={address}
           allowed={isAgent || isPrincipal}
-          onChanged={onChanged}
+          walletChainIdHex={wallet.chainId ? `0x${wallet.chainId.toString(16)}` : null}
         />
       ) : null}
 
@@ -152,59 +160,112 @@ export const ExecutionGate = ({ proposal, mandate, wallet, onChanged }: Props) =
   );
 };
 
+/**
+ * The payment leg. Deliberately outside the Intelligent Contract: GenLayer adjudicates
+ * whether the action may execute, and does not move or verify value. The payment is
+ * signed by the principal's own wallet and verified here against the settling chain's
+ * own public RPC.
+ */
 const SettlementSection = ({
   proposal,
   connected,
   address,
   allowed,
-  onChanged,
+  walletChainIdHex,
 }: {
   proposal: Proposal;
   connected: boolean;
   address: string | null;
   allowed: boolean;
-  onChanged: () => void;
+  walletChainIdHex: string | null;
 }) => {
   const { state, run, reset } = useTx();
   const [rail, setRail] = useState<SettlementRail>('sepolia');
   const [txHash, setTxHash] = useState('');
   const [payee, setPayee] = useState('');
   const [amount, setAmount] = useState('');
+  const [record, setRecord] = useState<Settlement | null>(null);
+  const [authorization, setAuthorization] = useState('');
 
-  if (proposal.settlement) {
-    const config = SETTLEMENT_RAILS[proposal.settlement.chain as SettlementRail];
+  useEffect(() => {
+    setRecord(getSettlement(proposal.proposal_id));
+    setAuthorization(getAuthorization(proposal.proposal_id));
+  }, [proposal.proposal_id]);
+
+  const config = SETTLEMENT_RAILS[rail];
+
+  const verifyAndStore = async (hash: string, chain: SettlementRail) => {
+    const result = await verifySettlement(chain, hash, payee, amount, authorization);
+    if (!result.verified) throw new Error(result.detail);
+    const stored: Settlement = {
+      proposalId: proposal.proposal_id,
+      chain,
+      txHash: hash,
+      payee: result.payee,
+      amountMinor: result.amountMinor,
+      authorization,
+      verified: true,
+      detail: result.detail + (result.carriesAuthorization ? ', carries the authorization' : ''),
+      chainRef: result.chainRef,
+      recordedAt: Math.floor(Date.now() / 1000),
+    };
+    putSettlement(stored);
+    setRecord(stored);
+    return stored;
+  };
+
+  if (record) {
+    const recorded = SETTLEMENT_RAILS[record.chain as SettlementRail];
     return (
       <div className="rule mt-5 pt-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="label">Settlement</div>
-          <Badge tone="execute">verified on {config?.label ?? proposal.settlement.chain}</Badge>
+          <div className="label">Settlement — outside the adjudication layer</div>
+          <Badge tone="execute">verified on {recorded?.label ?? record.chain}</Badge>
         </div>
         <p className="mt-2 text-[13px] text-ink">
-          {proposal.settlement.amount_minor} {config ? 'minor units' : ''} to{' '}
-          <span className="datum">{proposal.settlement.payee}</span> — {proposal.settlement.detail}
+          {record.amountMinor} minor units to <span className="datum">{record.payee}</span> —{' '}
+          {record.detail}
         </p>
-        {config ? (
+        {recorded ? (
           <a
-            href={config.explorerTx(proposal.settlement.tx_hash)}
+            href={recorded.explorerTx(record.txHash)}
             target="_blank"
             rel="noreferrer"
             className="datum mt-2 inline-block text-[11px] break-all text-signal hover:underline"
           >
-            {proposal.settlement.tx_hash}
+            {record.txHash}
           </a>
         ) : null}
+        <p className="mt-2 text-[11px] text-ink-faint">
+          Verified against {recorded?.label ?? record.chain} directly. The contract holds no
+          payment state: it decided, and this executed behind the gate.
+        </p>
       </div>
     );
   }
 
   return (
     <div className="rule mt-5 pt-4">
-      <div className="label mb-2">Settlement</div>
+      <div className="label mb-2">Settlement — outside the adjudication layer</div>
       <p className="mb-3 text-[13px] text-ink-dim">
-        The approval is consumed, so a payment may now be recorded. Pay from your own wallet on a
-        testnet, then submit the transaction hash: the contract verifies it against a public RPC
-        and refuses anything it cannot confirm.
+        The approval is consumed, so the action may now execute. GenLayer decided it; it does
+        not settle it. Pay from your own wallet on a testnet — the payment carries the
+        authorization artifact — and it is verified here against the settling chain.
       </p>
+
+      {authorization ? (
+        <div className="mb-3">
+          <div className="label mb-1">Authorization artifact</div>
+          <p className="datum text-[11px] break-all text-ink-faint">{authorization}</p>
+        </div>
+      ) : (
+        <p className="mb-3 text-[12px] text-reconfirm">
+          The authorization artifact from this browser is not available (it is returned when the
+          approval is consumed). Payment can still be verified, but it will not carry the link
+          to the decision.
+        </p>
+      )}
+
       <TxBanner state={state} onDismiss={reset} />
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -223,7 +284,7 @@ const SettlementSection = ({
           </select>
         </label>
         <label className="block">
-          <span className="label">Amount ({SETTLEMENT_RAILS[rail].symbol}, minor units)</span>
+          <span className="label">Amount ({config.symbol}, minor units)</span>
           <input
             value={amount}
             onChange={(event) => setAmount(event.target.value.replace(/[^0-9]/g, ''))}
@@ -240,8 +301,62 @@ const SettlementSection = ({
             className="datum mt-1 w-full border border-line bg-surface px-2.5 py-2 text-[12px] text-ink"
           />
         </label>
-        <label className="block sm:col-span-2">
-          <span className="label">Transaction hash / signature</span>
+      </div>
+
+      {config.walletPayable ? (
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <Button
+            tone="primary"
+            disabled={!connected || !allowed || state.phase === 'pending' || !payee || !amount}
+            onClick={() =>
+              void run('Pay and verify', async () => {
+                const { txHash: sent, previousChainIdHex } = await payOnSepolia(
+                  address!,
+                  payee,
+                  amount,
+                  authorization,
+                );
+                setTxHash(sent);
+                try {
+                  return await verifyAndStore(sent, 'sepolia');
+                } finally {
+                  // Put the wallet back on the GenLayer chain so the console keeps working.
+                  await returnToChain(walletChainIdHex ?? '0xf22d');
+                }
+              })
+            }
+          >
+            Pay {config.symbol} from my wallet
+          </Button>
+          <a
+            href={config.faucet}
+            target="_blank"
+            rel="noreferrer"
+            className="datum text-[11px] text-signal hover:underline"
+          >
+            faucet
+          </a>
+        </div>
+      ) : (
+        <p className="mt-3 text-[12px] text-ink-faint">
+          {config.label} is signed in a Solana wallet such as Phantom. Send the transfer there,
+          then paste the signature below.{' '}
+          <a
+            href={config.faucet}
+            target="_blank"
+            rel="noreferrer"
+            className="text-signal hover:underline"
+          >
+            faucet
+          </a>
+        </p>
+      )}
+
+      <div className="rule mt-4 pt-4">
+        <label className="block">
+          <span className="label">
+            Already paid? Paste the transaction hash or signature to verify it
+          </span>
           <input
             value={txHash}
             onChange={(event) => setTxHash(event.target.value.trim())}
@@ -249,31 +364,14 @@ const SettlementSection = ({
             className="datum mt-1 w-full border border-line bg-surface px-2.5 py-2 text-[12px] text-ink"
           />
         </label>
-      </div>
-
-      <div className="mt-3">
-        <Button
-          tone="primary"
-          disabled={
-            !connected || !allowed || state.phase === 'pending' || !txHash || !payee || !amount
-          }
-          onClick={() =>
-            void run('Record settlement', async () => {
-              const result = await caveat.recordSettlement(
-                address!,
-                proposal.proposal_id,
-                rail,
-                txHash,
-                payee,
-                amount,
-              );
-              onChanged();
-              return result;
-            })
-          }
-        >
-          Verify and record settlement
-        </Button>
+        <div className="mt-3">
+          <Button
+            disabled={state.phase === 'pending' || !txHash || !payee || !amount}
+            onClick={() => void run('Verify payment', () => verifyAndStore(txHash, rail))}
+          >
+            Verify payment
+          </Button>
+        </div>
       </div>
     </div>
   );

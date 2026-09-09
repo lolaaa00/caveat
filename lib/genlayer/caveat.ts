@@ -170,12 +170,3 @@ export const reject = (sender: string, proposalId: string) =>
 
 export const consumeApproval = (sender: string, proposalId: string) =>
   send(sender, 'consume_approval', [proposalId]);
-
-export const recordSettlement = (
-  sender: string,
-  proposalId: string,
-  chain: string,
-  txHash: string,
-  payee: string,
-  amountMinor: string,
-) => send(sender, 'record_settlement', [proposalId, chain, txHash, payee, BigInt(amountMinor)]);

@@ -70,15 +70,22 @@ export interface EvidenceRecord {
   retrieved_at: string;
 }
 
+/**
+ * A settlement record. This is NOT contract state: GenLayer decides, it does not settle.
+ * The record lives client-side and is verified against the settling chain's own RPC.
+ */
 export interface Settlement {
+  proposalId: string;
   chain: string;
-  tx_hash: string;
+  txHash: string;
   payee: string;
-  amount_minor: string;
+  amountMinor: string;
+  /** The authorization artifact returned by consume_approval that permitted this payment. */
+  authorization: string;
   verified: boolean;
   detail: string;
-  chain_ref: string;
-  recorded_at: number;
+  chainRef: string;
+  recordedAt: number;
 }
 
 export interface Proposal {
@@ -103,7 +110,6 @@ export interface Proposal {
   reconfirmed_at: number;
   approval_consumed: boolean;
   consumed_at: number;
-  settlement: Settlement | null;
   executable: boolean;
 }
 

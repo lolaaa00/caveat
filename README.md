@@ -82,8 +82,8 @@ none of them; it reads state and submits signed transactions.
 | --- | --- |
 | Network | GenLayer Studio Next / Studio-dev |
 | Chain ID | **61997** |
-| Contract | [`0x2938cAB99274b9fd6Fab7F3dd5b968c6F0b240C4`](https://explorer-studio-dev.genlayer.com/address/0x2938cAB99274b9fd6Fab7F3dd5b968c6F0b240C4) |
-| Deployment tx | [`0x4ff55f92…014dec5`](https://explorer-studio-dev.genlayer.com/tx/0x4ff55f9282e87b5227e63711db40c95df4791a790b0fa4f3af209f6d0014dec5) |
+| Contract | [`0x0EF51C68BC0D1394b5F3880e593867ddDd0b7E31`](https://explorer-studio-dev.genlayer.com/address/0x0EF51C68BC0D1394b5F3880e593867ddDd0b7E31) |
+| Deployment tx | [`0x4b9b56fc…0045160`](https://explorer-studio-dev.genlayer.com/tx/0x4b9b56fc29947bcf551cc3d319fc49e682c608db8b1680760ff6849ff0045160) |
 | Consensus / execution | `MAJORITY_AGREE` / `SUCCESS` |
 | Evidence | `artifacts/deployment.studio_devnet.json`, `artifacts/e2e.studio_devnet.json` |
 
@@ -131,7 +131,7 @@ Everything below works with no keys and no accounts. Testnet keys are generated
 automatically on first deploy and written to `.env` (gitignored).
 
 ```bash
-npm run test:contract   # 68 direct tests, no network, ~45s (uses .venv)
+npm run test:contract   # 60 direct tests, no network, ~40s (uses .venv)
 npm run lint:contract   # genvm-lint check + validate + typecheck
 npm run deploy          # deploy to Studio Next, write .env + artifacts
 npm run dev             # console on http://localhost:3000
@@ -140,7 +140,7 @@ npm run dev             # console on http://localhost:3000
 ## Testing
 
 ```bash
-npm run test:contract      # 68 in-process tests against the real SDK
+npm run test:contract      # 60 in-process tests against the real SDK
 npm run test:integration   # 5 tests on chain 61997 (~4 min, real validators and fees)
 python3 scripts/e2e.py     # full lifecycle on chain, writes artifacts/
 npm run typecheck          # frontend types
@@ -154,7 +154,7 @@ npm run build              # production build
 | `test/direct/test_semantic.py` | All three verdicts, `INCONCLUSIVE`, fail-closed, fallback capping, evidence digests |
 | `test/direct/test_execution_gate.py` | Gate, reconfirmation, rejection, replay, revocation, expiry |
 | `test/direct/test_security.py` | Prompt-injection fencing, truncation, agent-crafted evidence, policy mutation |
-| `test/direct/test_settlement.py` | Both rails, verification refusals, ordering, replay |
+| `test/direct/test_authorization_artifact.py` | The gate is the boundary: no payment surface on the contract, and the authorization artifact binds the decision |
 | `test/integration/test_studio_next.py` | The same behaviour on the real network |
 
 ## Environment variables
@@ -206,17 +206,35 @@ Full analysis in [docs/threat-model.md](docs/threat-model.md). Headlines:
 - **Replay** → one-time approval, second attempt reverts on chain.
 - **Policy mutation** → proposals bind the policy commitment; a mismatch blocks.
 - **Source outage** → fail closed; unavailable evidence can never yield `EXECUTE`.
-- **Money before verdict** → settlement requires a consumed approval, and is verified before being recorded.
+- **Money before verdict** → payment has nothing to reference until an approval is consumed; the contract itself never settles.
 
-## Payment rail
+## Where CAVEAT stops
 
-The settlement leg of the gate, not a payments product. Sepolia and Solana devnet only.
+**GenLayer is the decision and adjudication layer. It does not move value, hold value, or
+verify payments.** The contract's entire output is a verdict and, for `EXECUTE`, a
+single-use authorization artifact. There is no `settle`, `pay`, `transfer` or
+`verify_payment` on it, and a test enforces that.
 
-The principal pays from their own wallet; CAVEAT never holds funds or keys. The contract
-then verifies the transaction against a free keyless public RPC — success status, the
-stated payee, an amount at least what was claimed — and records it only if it verifies.
-Ordering is enforced on chain: settlement is refused unless the proposal reached
-`EXECUTE_APPROVED` and its one-time approval was consumed.
+`consume_approval` returns a digest binding the proposal, the exact mandate policy it was
+judged against, the evidence behind the verdict, and the moment of consumption. That
+digest is the boundary: whatever executes the action downstream carries it as proof the
+action was authorized by a specific decision.
+
+## Payment rail (behind the gate)
+
+Sepolia and Solana devnet, testnet only. Deliberately *outside* the contract:
+
+- The principal pays from their own wallet. CAVEAT never holds funds or keys.
+- On Sepolia the payment carries the authorization artifact in its calldata, so the
+  payment itself references the decision that permitted it — checkable by anyone, with the
+  adjudication layer not involved in the payment at all.
+- The payment is verified client-side against the settling chain's own free keyless public
+  RPC (success status, stated payee, sufficient amount). An unverifiable hash is never
+  shown as settled.
+- The record is browser-local and non-authoritative, and is re-verified against the chain
+  rather than trusted. Losing it loses a convenience, never a decision.
+- Ordering holds because the gate holds: without a consumed approval there is no
+  authorization artifact to pay against.
 
 ## Demo
 
@@ -237,7 +255,7 @@ status or contract state. Every outcome shown is read back from the contract.
 
 No paid API keys, no billing, no card, no paid RPC, database, hosting or monitoring.
 GenLayer validator web access covers evidence; keyless public RPCs cover settlement
-verification; Sepolia and Solana devnet funds come from free faucets; Studio Next has a
+verification client-side; Sepolia and Solana devnet funds come from free faucets; Studio Next has a
 built-in faucet the deploy script calls automatically.
 
 ## Roadmap
@@ -252,7 +270,7 @@ so new verticals are new adapters, not new contracts.
 | SaaS renewal | Seat counts and price-change evidence before auto-renewal executes |
 | Marketplace purchase | Stock, dispatch and seller-standing evidence |
 | Treasury action | Counterparty and rate evidence ahead of a transfer |
-| Cross-chain execution | The gate stays on GenLayer; settlement verification extends per chain |
+| Cross-chain execution | The gate stays on GenLayer; each chain's executor verifies its own settlement |
 | Agent SDK | `is_executable` / `consume_approval` as a two-call integration for any agent framework |
 
 ## Repository
@@ -262,9 +280,10 @@ contracts/caveat.py            the Intelligent Contract — all state, all verdi
 app/                           console: dashboard, mandates, checkpoint, receipt, demo
 components/                    ui, mandate, proposal, decision, execution
 lib/                           config, types, genlayer client, wallet, fixtures
+lib/settlement/                the payment leg — client-side, outside the contract
 scripts/deploy.py              deploy to Studio Next + write evidence artifacts
 scripts/e2e.py                 full lifecycle on chain
-test/direct/                   68 in-process tests
+test/direct/                   60 in-process tests
 test/integration/              5 tests on chain 61997
 public/evidence/               first-party evidence pages for the demo
 docs/                          architecture, threat model, demo script

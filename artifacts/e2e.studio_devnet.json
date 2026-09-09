@@ -1,5 +1,5 @@
 {
-  "contract_address": "0x2938cAB99274b9fd6Fab7F3dd5b968c6F0b240C4",
+  "contract_address": "0x0EF51C68BC0D1394b5F3880e593867ddDd0b7E31",
   "evidence_source": "https://example.com/",
   "mandate_id": "MND-0001",
   "scenarios": {
@@ -11,24 +11,24 @@
   "transactions": [
     {
       "label": "create_mandate",
-      "tx": "0xb7b2af53cdab094964dc027d00d56e888a5d65b9fc43b186043479e9bc4c33c9",
-      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0xb7b2af53cdab094964dc027d00d56e888a5d65b9fc43b186043479e9bc4c33c9"
+      "tx": "0x5c21ee14bc134555c3ace2489ff53c5923c4b540572b3f4fa877ea7b8d5533b1",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x5c21ee14bc134555c3ace2489ff53c5923c4b540572b3f4fa877ea7b8d5533b1"
     },
     {
       "label": "activate_mandate",
-      "tx": "0x5a21a7849cdc3ee71729f399438c2b822c88679d3b5ef0647d0ceb10303df576",
-      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x5a21a7849cdc3ee71729f399438c2b822c88679d3b5ef0647d0ceb10303df576"
+      "tx": "0xaf82611f46b58f4ea9291e94905e54684a5ab2bf48232fb05b3629d66ab04531",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0xaf82611f46b58f4ea9291e94905e54684a5ab2bf48232fb05b3629d66ab04531"
     },
     {
       "label": "submit_proposal",
-      "tx": "0xe312f9915077124a66bfc2200e98d3b00bd30b15f3e9690150d444cf1a0a7a6f",
-      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0xe312f9915077124a66bfc2200e98d3b00bd30b15f3e9690150d444cf1a0a7a6f"
+      "tx": "0x2333e4c6960c6a6fefccbe155b011985558b89b8792831497f719368411f3444",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x2333e4c6960c6a6fefccbe155b011985558b89b8792831497f719368411f3444"
     },
     {
       "label": "evaluate_proposal",
-      "tx": "0x0cf3ce2c75eecee4c8f149f435f319dafd5e2f9b55a06f3e15bfafa09bbc88f2",
-      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x0cf3ce2c75eecee4c8f149f435f319dafd5e2f9b55a06f3e15bfafa09bbc88f2"
+      "tx": "0x7ecc8e19ec41b5414b2130c959a30845370707ede2bec7fee4cbbba64b4c9bb7",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x7ecc8e19ec41b5414b2130c959a30845370707ede2bec7fee4cbbba64b4c9bb7"
     }
   ],
-  "ran_at": "2026-09-08T19:55:43.427577+00:00"
+  "ran_at": "2026-09-09T00:25:09.262161+00:00"
 }
