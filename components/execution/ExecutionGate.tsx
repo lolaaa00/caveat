@@ -9,7 +9,8 @@ import { verifySettlement } from '@/lib/settlement/verify';
 import type { Mandate, Proposal, Settlement } from '@/lib/types';
 import { useTx } from '@/lib/wallet/useTx';
 import type { useWallet } from '@/lib/wallet/useWallet';
-import { Badge, Button, Panel } from '@/components/ui/primitives';
+import { skinFor, skinVars } from '@/lib/ui/verdict';
+import { Button } from '@/components/ui/primitives';
 import { TxBanner } from '@/components/ui/TxBanner';
 
 interface Props {
@@ -27,136 +28,146 @@ export const ExecutionGate = ({ proposal, mandate, wallet, onChanged }: Props) =
   const isPrincipal = same(address, mandate.principal);
   const isAgent = same(address, mandate.agent);
   const connected = wallet.status === 'ready' && Boolean(address);
+  const skin = skinFor(proposal.verdict);
 
   const act = async (label: string, action: () => Promise<unknown>) => {
     const result = await run(label, action);
     if (result) onChanged();
   };
 
+  const status = proposal.approval_consumed
+    ? 'EXECUTION GATE CLOSED'
+    : proposal.executable
+      ? 'EXECUTION AUTHORIZED'
+      : proposal.status === 'BLOCKED'
+        ? 'EXECUTION REFUSED'
+        : proposal.status === 'RECONFIRM_REQUIRED'
+          ? 'EXECUTION LOCKED'
+          : 'AWAITING CHECKPOINT';
+
+  const sub = proposal.approval_consumed
+    ? 'Approval consumed — replay protected'
+    : proposal.executable
+      ? 'One-time approval — ready to consume'
+      : proposal.status === 'BLOCKED'
+        ? 'Contradicts the mandate — cannot be reconfirmed'
+        : proposal.status === 'RECONFIRM_REQUIRED'
+          ? 'Awaiting principal reconfirmation'
+          : 'No verdict yet';
+
   return (
-    <Panel
-      title="Execution gate"
-      aside={
-        proposal.approval_consumed ? (
-          <Badge tone="neutral">one-time approval consumed</Badge>
-        ) : proposal.executable ? (
-          <Badge tone="execute">authorized</Badge>
-        ) : (
-          <Badge tone="reconfirm">locked</Badge>
-        )
-      }
-    >
-      <TxBanner state={state} onDismiss={reset} />
+    <div className="gate-panel" style={skinVars(skin)}>
+      <div className="gate-status">{status}</div>
+      <div className="gate-sub">{sub}</div>
 
-      {!connected ? (
-        <p className="text-[13px] text-ink-faint">
-          Connect the principal or agent wallet to act on this checkpoint.
-        </p>
-      ) : null}
+      <div style={{ textAlign: 'left', maxWidth: 560, margin: '0 auto' }}>
+        <TxBanner state={state} onDismiss={reset} />
 
-      {proposal.status === 'PROPOSED' && connected ? (
-        <div className="space-y-3">
-          <p className="text-[13px] text-ink-dim">
-            This proposal has not been through the checkpoint. Run it to obtain a verdict from
-            the contract.
+        {!connected ? (
+          <p style={{ fontSize: '0.8125rem', color: 'var(--color-faint)', textAlign: 'center' }}>
+            Connect the principal or agent wallet to act on this checkpoint.
           </p>
-          <Button
-            tone="primary"
-            disabled={state.phase === 'pending'}
-            onClick={() =>
-              void act('Run checkpoint', () =>
-                caveat.evaluateProposal(address!, proposal.proposal_id),
-              )
-            }
-          >
-            Run CAVEAT checkpoint
-          </Button>
-        </div>
-      ) : null}
+        ) : null}
 
-      {proposal.status === 'RECONFIRM_REQUIRED' && connected ? (
-        <div className="space-y-3">
-          <p className="text-[13px] text-ink">
-            Execution stays locked until the principal supplies fresh authorization. The contract
-            will not release it, and neither will this page.
-          </p>
-          {isPrincipal ? (
-            <div className="flex flex-wrap gap-3">
-              <Button
-                tone="execute"
-                disabled={state.phase === 'pending'}
-                onClick={() =>
-                  void act('Reconfirm', () => caveat.reconfirm(address!, proposal.proposal_id))
-                }
-              >
-                Reconfirm this action
-              </Button>
-              <Button
-                tone="block"
-                disabled={state.phase === 'pending'}
-                onClick={() =>
-                  void act('Reject', () => caveat.reject(address!, proposal.proposal_id))
-                }
-              >
-                Reject
-              </Button>
-            </div>
-          ) : (
-            <p className="text-[12px] text-ink-faint">
-              Only the principal ({mandate.principal.slice(0, 10)}…) can reconfirm. The connected
-              wallet cannot.
+        {proposal.status === 'PROPOSED' && connected ? (
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', marginBottom: '1rem' }}>
+              This proposal has not been through the checkpoint. Run it to obtain a verdict from
+              the contract.
             </p>
-          )}
-        </div>
-      ) : null}
-
-      {proposal.executable && connected ? (
-        <div className="space-y-3">
-          <p className="text-[13px] text-ink">
-            The contract holds a single-use execution approval for this proposal. Consuming it
-            returns the authorization artifact and is irreversible: a second attempt is rejected
-            on chain.
-          </p>
-          {isAgent || isPrincipal ? (
             <Button
-              tone="execute"
+              tone="crimson"
               disabled={state.phase === 'pending'}
               onClick={() =>
-                void act('Consume approval', async () => {
-                  const result = await caveat.consumeApproval(address!, proposal.proposal_id);
-                  if (typeof result.returned === 'string' && result.returned.startsWith('0x')) {
-                    putAuthorization(proposal.proposal_id, result.returned);
-                  }
-                  return result;
-                })
+                void act('Run checkpoint', () => caveat.evaluateProposal(address!, proposal.proposal_id))
               }
             >
-              Consume execution approval
+              Run CAVEAT checkpoint
             </Button>
-          ) : (
-            <p className="text-[12px] text-ink-faint">
-              Only the mandated agent or the principal can consume this approval.
+          </div>
+        ) : null}
+
+        {proposal.status === 'RECONFIRM_REQUIRED' && connected ? (
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--color-text)', marginBottom: '1rem' }}>
+              Execution stays locked until the principal supplies fresh authorization. The
+              contract will not release it, and neither will this page.
             </p>
-          )}
-        </div>
-      ) : null}
+            {isPrincipal ? (
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+                <Button
+                  tone="lime"
+                  disabled={state.phase === 'pending'}
+                  onClick={() => void act('Reconfirm', () => caveat.reconfirm(address!, proposal.proposal_id))}
+                >
+                  Reconfirm this action
+                </Button>
+                <Button
+                  tone="crimson"
+                  disabled={state.phase === 'pending'}
+                  onClick={() => void act('Reject', () => caveat.reject(address!, proposal.proposal_id))}
+                >
+                  Reject
+                </Button>
+              </div>
+            ) : (
+              <p style={{ fontSize: '0.72rem', color: 'var(--color-faint)' }}>
+                Only the principal ({mandate.principal.slice(0, 10)}…) can reconfirm. The connected
+                wallet cannot.
+              </p>
+            )}
+          </div>
+        ) : null}
 
-      {proposal.approval_consumed ? (
-        <SettlementSection
-          proposal={proposal}
-          connected={connected}
-          address={address}
-          allowed={isAgent || isPrincipal}
-          walletChainIdHex={wallet.chainId ? `0x${wallet.chainId.toString(16)}` : null}
-        />
-      ) : null}
+        {proposal.executable && connected ? (
+          <div style={{ textAlign: 'center' }}>
+            <p style={{ fontSize: '0.8125rem', color: 'var(--color-text)', marginBottom: '1rem' }}>
+              The contract holds a single-use execution approval for this proposal. Consuming it
+              returns the authorization artifact and is irreversible: a second attempt is
+              rejected on chain.
+            </p>
+            {isAgent || isPrincipal ? (
+              <Button
+                tone="lime"
+                disabled={state.phase === 'pending'}
+                onClick={() =>
+                  void act('Consume approval', async () => {
+                    const result = await caveat.consumeApproval(address!, proposal.proposal_id);
+                    if (typeof result.returned === 'string' && result.returned.startsWith('0x')) {
+                      putAuthorization(proposal.proposal_id, result.returned);
+                    }
+                    return result;
+                  })
+                }
+              >
+                Consume Approval
+              </Button>
+            ) : (
+              <p style={{ fontSize: '0.72rem', color: 'var(--color-faint)' }}>
+                Only the mandated agent or the principal can consume this approval.
+              </p>
+            )}
+          </div>
+        ) : null}
 
-      {proposal.status === 'BLOCKED' ? (
-        <p className="text-[13px] text-ink-dim">
-          No execution path exists for a blocked proposal. The agent must propose something else.
-        </p>
-      ) : null}
-    </Panel>
+        {proposal.approval_consumed ? (
+          <SettlementSection
+            proposal={proposal}
+            connected={connected}
+            address={address}
+            allowed={isAgent || isPrincipal}
+            walletChainIdHex={wallet.chainId ? `0x${wallet.chainId.toString(16)}` : null}
+          />
+        ) : null}
+
+        {proposal.status === 'BLOCKED' ? (
+          <p style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', textAlign: 'center' }}>
+            No execution path exists for a blocked proposal. The agent must propose something
+            else.
+          </p>
+        ) : null}
+      </div>
+    </div>
   );
 };
 
@@ -214,16 +225,25 @@ const SettlementSection = ({
     return stored;
   };
 
+  const box: React.CSSProperties = {
+    marginTop: '1.5rem',
+    paddingTop: '1.5rem',
+    borderTop: '1px solid rgba(234,243,255,.1)',
+    textAlign: 'left',
+  };
+
   if (record) {
     const recorded = SETTLEMENT_RAILS[record.chain as SettlementRail];
     return (
-      <div className="rule mt-5 pt-4">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="label">Settlement — outside the adjudication layer</div>
-          <Badge tone="execute">verified on {recorded?.label ?? record.chain}</Badge>
+      <div style={box}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.5rem' }}>
+          <span className="field-k" style={{ marginBottom: 0 }}>
+            Settlement — outside the adjudication layer
+          </span>
+          <span className="tag tag-lime">verified on {recorded?.label ?? record.chain}</span>
         </div>
-        <p className="mt-2 text-[13px] text-ink">
-          {record.amountMinor} minor units to <span className="datum">{record.payee}</span> —{' '}
+        <p style={{ fontSize: '0.8125rem', color: 'var(--color-text)' }}>
+          {record.amountMinor} minor units to <span className="hash">{record.payee}</span> —{' '}
           {record.detail}
         </p>
         {recorded ? (
@@ -231,12 +251,13 @@ const SettlementSection = ({
             href={recorded.explorerTx(record.txHash)}
             target="_blank"
             rel="noreferrer"
-            className="datum mt-2 inline-block text-[11px] break-all text-signal hover:underline"
+            className="hash"
+            style={{ display: 'inline-block', marginTop: '0.5rem', color: 'var(--color-crimson-hot)', wordBreak: 'break-all' }}
           >
             {record.txHash}
           </a>
         ) : null}
-        <p className="mt-2 text-[11px] text-ink-faint">
+        <p style={{ fontSize: '0.68rem', color: 'var(--color-faint)', marginTop: '0.5rem', lineHeight: 1.5 }}>
           Verified against {recorded?.label ?? record.chain} directly. The contract holds no
           payment state: it decided, and this executed behind the gate.
         </p>
@@ -245,36 +266,40 @@ const SettlementSection = ({
   }
 
   return (
-    <div className="rule mt-5 pt-4">
-      <div className="label mb-2">Settlement — outside the adjudication layer</div>
-      <p className="mb-3 text-[13px] text-ink-dim">
-        The approval is consumed, so the action may now execute. GenLayer decided it; it does
-        not settle it. Pay from your own wallet on a testnet — the payment carries the
-        authorization artifact — and it is verified here against the settling chain.
+    <div style={box}>
+      <div className="field-k" style={{ marginBottom: '0.5rem' }}>
+        Settlement — outside the adjudication layer
+      </div>
+      <p style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', marginBottom: '0.875rem', lineHeight: 1.6 }}>
+        The approval is consumed, so the action may now execute. GenLayer decided it; it does not
+        settle it. Pay from your own wallet on a testnet — the payment carries the authorization
+        artifact — and it is verified here against the settling chain.
       </p>
 
       {authorization ? (
-        <div className="mb-3">
-          <div className="label mb-1">Authorization artifact</div>
-          <p className="datum text-[11px] break-all text-ink-faint">{authorization}</p>
+        <div style={{ marginBottom: '0.875rem' }}>
+          <div className="field-k" style={{ marginBottom: '0.3rem' }}>
+            Authorization artifact
+          </div>
+          <p className="hash">{authorization}</p>
         </div>
       ) : (
-        <p className="mb-3 text-[12px] text-reconfirm">
+        <p style={{ fontSize: '0.72rem', color: 'var(--color-amber)', marginBottom: '0.875rem', lineHeight: 1.5 }}>
           The authorization artifact from this browser is not available (it is returned when the
-          approval is consumed). Payment can still be verified, but it will not carry the link
-          to the decision.
+          approval is consumed). Payment can still be verified, but it will not carry the link to
+          the decision.
         </p>
       )}
 
       <TxBanner state={state} onDismiss={reset} />
 
-      <div className="grid gap-3 sm:grid-cols-2">
-        <label className="block">
-          <span className="label">Rail</span>
+      <div style={{ display: 'grid', gap: '0.75rem', gridTemplateColumns: '1fr 1fr' }}>
+        <label>
+          <span className="field-k">Rail</span>
           <select
             value={rail}
             onChange={(event) => setRail(event.target.value as SettlementRail)}
-            className="datum mt-1 w-full border border-line bg-surface px-2.5 py-2 text-[12px] text-ink"
+            className="input"
           >
             {Object.entries(SETTLEMENT_RAILS).map(([key, value]) => (
               <option key={key} value={key}>
@@ -283,44 +308,38 @@ const SettlementSection = ({
             ))}
           </select>
         </label>
-        <label className="block">
-          <span className="label">Amount ({config.symbol}, minor units)</span>
+        <label>
+          <span className="field-k">Amount ({config.symbol}, minor units)</span>
           <input
             value={amount}
             onChange={(event) => setAmount(event.target.value.replace(/[^0-9]/g, ''))}
             placeholder={rail === 'sepolia' ? '10000000000000000' : '25000000'}
-            className="datum mt-1 w-full border border-line bg-surface px-2.5 py-2 text-[12px] text-ink"
+            className="input"
           />
         </label>
-        <label className="block sm:col-span-2">
-          <span className="label">Payee</span>
+        <label style={{ gridColumn: '1 / -1' }}>
+          <span className="field-k">Payee</span>
           <input
             value={payee}
             onChange={(event) => setPayee(event.target.value.trim())}
             placeholder={rail === 'sepolia' ? '0x…' : 'base58 address'}
-            className="datum mt-1 w-full border border-line bg-surface px-2.5 py-2 text-[12px] text-ink"
+            className="input"
           />
         </label>
       </div>
 
       {config.walletPayable ? (
-        <div className="mt-3 flex flex-wrap items-center gap-3">
+        <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <Button
-            tone="primary"
+            tone="crimson"
             disabled={!connected || !allowed || state.phase === 'pending' || !payee || !amount}
             onClick={() =>
               void run('Pay and verify', async () => {
-                const { txHash: sent, previousChainIdHex } = await payOnSepolia(
-                  address!,
-                  payee,
-                  amount,
-                  authorization,
-                );
+                const { txHash: sent } = await payOnSepolia(address!, payee, amount, authorization);
                 setTxHash(sent);
                 try {
                   return await verifyAndStore(sent, 'sepolia');
                 } finally {
-                  // Put the wallet back on the GenLayer chain so the console keeps working.
                   await returnToChain(walletChainIdHex ?? '0xf22d');
                 }
               })
@@ -328,44 +347,34 @@ const SettlementSection = ({
           >
             Pay {config.symbol} from my wallet
           </Button>
-          <a
-            href={config.faucet}
-            target="_blank"
-            rel="noreferrer"
-            className="datum text-[11px] text-signal hover:underline"
-          >
+          <a href={config.faucet} target="_blank" rel="noreferrer" className="hash" style={{ color: 'var(--color-crimson-hot)' }}>
             faucet
           </a>
         </div>
       ) : (
-        <p className="mt-3 text-[12px] text-ink-faint">
+        <p style={{ marginTop: '1rem', fontSize: '0.72rem', color: 'var(--color-faint)', lineHeight: 1.6 }}>
           {config.label} is signed in a Solana wallet such as Phantom. Send the transfer there,
           then paste the signature below.{' '}
-          <a
-            href={config.faucet}
-            target="_blank"
-            rel="noreferrer"
-            className="text-signal hover:underline"
-          >
+          <a href={config.faucet} target="_blank" rel="noreferrer" style={{ color: 'var(--color-crimson-hot)' }}>
             faucet
           </a>
         </p>
       )}
 
-      <div className="rule mt-4 pt-4">
-        <label className="block">
-          <span className="label">
-            Already paid? Paste the transaction hash or signature to verify it
-          </span>
+      <div style={{ marginTop: '1.25rem', paddingTop: '1.25rem', borderTop: '1px solid rgba(234,243,255,.08)' }}>
+        <label>
+          <span className="field-k">Already paid? Paste the transaction hash or signature to verify it</span>
           <input
             value={txHash}
             onChange={(event) => setTxHash(event.target.value.trim())}
             placeholder={rail === 'sepolia' ? '0x…' : 'signature'}
-            className="datum mt-1 w-full border border-line bg-surface px-2.5 py-2 text-[12px] text-ink"
+            className="input"
           />
         </label>
-        <div className="mt-3">
+        <div style={{ marginTop: '0.875rem' }}>
           <Button
+            tone="ghost"
+            small
             disabled={state.phase === 'pending' || !txHash || !payee || !amount}
             onClick={() => void run('Verify payment', () => verifyAndStore(txHash, rail))}
           >
