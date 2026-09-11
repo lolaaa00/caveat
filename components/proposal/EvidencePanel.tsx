@@ -1,10 +1,10 @@
 import type { EvidenceRecord } from '@/lib/types';
-import { Badge, Empty } from '@/components/ui/primitives';
+import { Empty } from '@/components/ui/primitives';
 
-const TONE = {
-  LIVE: 'execute',
-  FALLBACK: 'reconfirm',
-  UNAVAILABLE: 'block',
+const STATUS_CLASS = {
+  LIVE: 'es-live',
+  FALLBACK: 'es-fallback',
+  UNAVAILABLE: 'es-unavailable',
 } as const;
 
 const NOTE = {
@@ -31,29 +31,33 @@ export const EvidencePanel = ({
   }
 
   return (
-    <div className="space-y-4">
-      {evidence.map((item) => (
-        <div key={item.qid} className="border border-line bg-surface p-3.5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <p className="max-w-xl text-[12px] text-ink-dim">{item.question}</p>
-            <Badge tone={TONE[item.retrieval_class]}>{item.retrieval_class}</Badge>
+    <div>
+      {evidence.map((item, i) => (
+        <div key={item.qid} style={{ marginBottom: i === evidence.length - 1 ? 0 : '1rem' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.75rem', color: 'var(--color-muted)', marginBottom: '0.5rem' }}>
+            {item.question}
           </div>
-          <p className="datum mt-3 text-[24px] leading-none text-ink">{item.claim}</p>
-          <p className="mt-3 text-[11px] text-ink-faint">{NOTE[item.retrieval_class]}</p>
-          <a
-            href={item.source_url}
-            target="_blank"
-            rel="noreferrer"
-            className="datum mt-2 inline-block text-[11px] break-all text-signal hover:underline"
-          >
-            {item.source_url}
-          </a>
+          <div className="evi-source">
+            <div>
+              <div className="evi-src-name">{item.claim}</div>
+              <div className="evi-src-time">{item.source_url}</div>
+            </div>
+            <span className={`evi-status ${STATUS_CLASS[item.retrieval_class]}`}>
+              <span className="scan-dot" />
+              {item.retrieval_class}
+            </span>
+          </div>
+          <p style={{ fontSize: '0.72rem', color: 'var(--color-faint)', marginTop: '0.5rem', lineHeight: 1.5 }}>
+            {NOTE[item.retrieval_class]}
+          </p>
         </div>
       ))}
       {digest ? (
-        <div>
-          <div className="label mb-1">Evidence digest</div>
-          <p className="datum text-[11px] break-all text-ink-faint">{digest}</p>
+        <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px solid rgba(234,243,255,.08)' }}>
+          <div className="field-k" style={{ marginBottom: '0.35rem' }}>
+            Evidence digest
+          </div>
+          <p className="hash">{digest}</p>
         </div>
       ) : null}
     </div>

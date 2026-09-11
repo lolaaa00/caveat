@@ -1,25 +1,36 @@
 import type { Metadata } from 'next';
+import { Inter, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
+import { Ambient } from '@/components/ui/Ambient';
 import { TopBar } from '@/components/ui/TopBar';
 
+const inter = Inter({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700', '800', '900'],
+  variable: '--font-inter',
+  display: 'swap',
+});
+
+const jetbrains = JetBrains_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-jetbrains',
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
-  title: 'CAVEAT — Execution Checkpoint',
+  title: 'CAVEAT — Autonomous Execution Checkpoint',
   description:
-    'A context-aware execution checkpoint for autonomous agents. Authorization proves an agent may act; CAVEAT verifies whether acting still means what you meant.',
+    'Permission can stay valid. Intent can change. CAVEAT checks whether an agent’s proposed action still faithfully represents the authority it was given.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-void text-ink">
+    <html lang="en" className={`${inter.variable} ${jetbrains.variable}`}>
+      <body>
+        <Ambient />
         <TopBar />
-        <main className="mx-auto w-full max-w-[1180px] px-6 py-8">{children}</main>
-        <footer className="mx-auto w-full max-w-[1180px] px-6 pb-10">
-          <p className="label">
-            Every verdict on this console is read from the Intelligent Contract. The frontend
-            computes none of them.
-          </p>
-        </footer>
+        {children}
       </body>
     </html>
   );

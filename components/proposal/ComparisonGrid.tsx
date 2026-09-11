@@ -1,83 +1,61 @@
-import type { EvidenceRecord, Mandate, Proposal } from '@/lib/types';
-
-const Column = ({
-  heading,
-  caption,
-  children,
-}: {
-  heading: string;
-  caption: string;
-  children: React.ReactNode;
-}) => (
-  <div className="flex-1 border border-line bg-panel p-4">
-    <div className="label">{heading}</div>
-    <p className="mt-1 mb-3 text-[11px] text-ink-faint">{caption}</p>
-    <div className="space-y-3">{children}</div>
-  </div>
-);
-
-const Line = ({ label, value }: { label: string; value: React.ReactNode }) => (
-  <div>
-    <div className="label mb-0.5">{label}</div>
-    <div className="text-[13px] leading-snug text-ink">{value}</div>
-  </div>
-);
+import type { Mandate, Proposal } from '@/lib/types';
 
 /**
- * The core comparison the whole product exists to make visible:
- * what was authorized, what is proposed, and what the world now says.
+ * The core comparison the whole product exists to make visible: what was authorized,
+ * against what is proposed right now. Current context lives in its own evidence panel
+ * further down the page, exactly as the checkpoint's narrative unfolds.
  */
-export const ComparisonGrid = ({
-  mandate,
-  proposal,
-  evidence,
-}: {
-  mandate: Mandate;
-  proposal: Proposal;
-  evidence: EvidenceRecord[];
-}) => {
+export const ComparisonGrid = ({ mandate, proposal }: { mandate: Mandate; proposal: Proposal }) => {
   const payload = proposal.action_payload as Record<string, unknown>;
 
   return (
-    <div className="flex flex-col gap-3 lg:flex-row">
-      <Column heading="Mandate" caption="What the principal authorized, in their own words">
-        <Line label="Original intent" value={mandate.intent_text} />
-        <Line label="Purpose" value={mandate.purpose_text || '—'} />
-        <Line label="Semantic condition" value={mandate.semantic_conditions || '—'} />
-      </Column>
-
-      <Column heading="Proposed action" caption="What the agent wants to do right now">
-        <Line label="Summary" value={proposal.action_summary || '—'} />
-        <div>
-          <div className="label mb-1">Payload</div>
-          <dl className="space-y-1">
-            {Object.entries(payload).map(([key, value]) => (
-              <div key={key} className="flex justify-between gap-3 border-b border-line py-1">
-                <dt className="datum text-[11px] text-ink-faint">{key}</dt>
-                <dd className="datum text-[11px] text-ink">
-                  {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-                </dd>
+    <div className="checkpoint-grid grid-2">
+      <div className="panel">
+        <div className="panel-head">Mandate</div>
+        <div className="mandate-quote">&#8220;{mandate.intent_text}&#8221;</div>
+        <div className="field-grid">
+          <div>
+            <div className="field-k">Agent</div>
+            <div className="field-v pos">AUTHORIZED</div>
+          </div>
+          <div>
+            <div className="field-k">Status</div>
+            <div className={`field-v ${mandate.status === 'ACTIVE' ? 'pos' : ''}`}>{mandate.status}</div>
+          </div>
+          {mandate.purpose_text ? (
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div className="field-k">Purpose</div>
+              <div className="field-v" style={{ fontWeight: 400 }}>
+                {mandate.purpose_text}
               </div>
-            ))}
-          </dl>
-        </div>
-      </Column>
-
-      <Column heading="Current context" caption="What independently retrieved evidence says today">
-        {evidence.length === 0 ? (
-          <p className="text-[13px] text-ink-faint">
-            Not retrieved. Deterministic checks decided this proposal first.
-          </p>
-        ) : (
-          evidence.map((item) => (
-            <div key={item.qid}>
-              <div className="label mb-0.5">{item.question}</div>
-              <div className="datum text-[20px] text-ink">{item.claim}</div>
-              <div className="label mt-1">{item.retrieval_class}</div>
             </div>
-          ))
-        )}
-      </Column>
+          ) : null}
+          {mandate.semantic_conditions ? (
+            <div style={{ gridColumn: '1 / -1' }}>
+              <div className="field-k">Semantic condition</div>
+              <div className="field-v" style={{ fontWeight: 400 }}>
+                {mandate.semantic_conditions}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="panel">
+        <div className="panel-head">Proposed Action</div>
+        <div className="kv-item">
+          <span className="kv-k">Summary</span>
+          <span className="kv-v">{proposal.action_summary || '—'}</span>
+        </div>
+        {Object.entries(payload).map(([key, value]) => (
+          <div key={key} className="kv-item">
+            <span className="kv-k">{key.replace(/_/g, ' ')}</span>
+            <span className="kv-v">
+              {typeof value === 'object' ? JSON.stringify(value) : String(value)}
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

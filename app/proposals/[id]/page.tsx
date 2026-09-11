@@ -5,16 +5,22 @@ import { useParams } from 'next/navigation';
 import * as caveat from '@/lib/genlayer/caveat';
 import { useChainData } from '@/lib/genlayer/useChainData';
 import { useWallet } from '@/lib/wallet/useWallet';
-import { Badge, Empty, Mono, Panel } from '@/components/ui/primitives';
+import { Empty } from '@/components/ui/primitives';
+import { Reveal } from '@/components/ui/Reveal';
 import { ComparisonGrid } from '@/components/proposal/ComparisonGrid';
 import { CheckTable } from '@/components/proposal/CheckTable';
-import { EvidencePanel } from '@/components/proposal/EvidencePanel';
+import { ContextPanel } from '@/components/proposal/ContextPanel';
+import { Timeline } from '@/components/proposal/Timeline';
+import { IntentFidelity } from '@/components/decision/IntentFidelity';
+import { Divider } from '@/components/decision/Divider';
 import { VerdictBanner } from '@/components/decision/VerdictBanner';
 import { ExecutionGate } from '@/components/execution/ExecutionGate';
+import { skinFor, skinVars } from '@/lib/ui/verdict';
 
 /**
  * The checkpoint. Mandate, proposed action and current context side by side, then the
- * deterministic checks, then the consensus verdict, then the gate.
+ * deterministic checks, the current-context beat, the fidelity chain, the verdict, and
+ * the gate — in that order, because that is the order the contract actually decides in.
  */
 export default function ProposalCheckpoint() {
   const params = useParams<{ id: string }>();
@@ -27,78 +33,140 @@ export default function ProposalCheckpoint() {
   }, [params.id]);
 
   if (error) {
-    return <div className="border border-block/60 bg-block-dim px-4 py-3 text-[13px] text-block">{error}</div>;
+    return (
+      <div className="section">
+        <div className="panel" style={{ borderColor: 'rgba(255,21,88,.4)' }}>
+          <p style={{ color: 'var(--color-crimson-hot)', fontSize: '0.8125rem' }}>{error}</p>
+        </div>
+      </div>
+    );
   }
-  if (loading) return <Empty>Reading the checkpoint from the contract…</Empty>;
-  if (!data?.proposal || !data.mandate) return <Empty>Proposal not found.</Empty>;
+  if (loading) {
+    return (
+      <div className="section">
+        <Empty>Reading the checkpoint from the contract…</Empty>
+      </div>
+    );
+  }
+  if (!data?.proposal || !data.mandate) {
+    return (
+      <div className="section">
+        <Empty>Proposal not found.</Empty>
+      </div>
+    );
+  }
 
   const { proposal, mandate } = data;
-  const evaluated = Boolean(proposal.decided_at);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <div className="section" style={{ paddingTop: '2.5rem', ...skinVars(skinFor(proposal.verdict)) }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', justifyContent: 'space-between', gap: '1rem', marginBottom: '2rem' }}>
         <div>
-          <div className="label mb-1">Live execution checkpoint</div>
-          <div className="flex items-baseline gap-3">
-            <h1 className="datum text-[22px] tracking-[0.08em] text-ink">{proposal.proposal_id}</h1>
-            <Link href={`/mandates/${mandate.mandate_id}`} className="datum text-[12px] text-signal hover:underline">
+          <div className="eyebrow" style={{ marginBottom: '0.75rem' }}>
+            <span className="eb-dash" />
+            Live Execution Checkpoint
+          </div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.875rem', flexWrap: 'wrap' }}>
+            <h1 style={{ fontFamily: 'var(--font-mono)', fontSize: '1.5rem', letterSpacing: '0.04em', margin: 0 }}>
+              {proposal.proposal_id}
+            </h1>
+            <Link href={`/mandates/${mandate.mandate_id}`} className="mono-id" style={{ color: 'var(--color-crimson-hot)' }}>
               {mandate.mandate_id}
             </Link>
           </div>
-          <p className="mt-1 text-[13px] text-ink-dim">{proposal.action_summary}</p>
+          <p style={{ marginTop: '0.4rem', fontSize: '0.8125rem', color: 'var(--color-muted)' }}>
+            {proposal.action_summary}
+          </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Badge>{proposal.status}</Badge>
-          {proposal.approval_consumed ? <Badge tone="neutral">approval consumed</Badge> : null}
-          {evaluated ? (
+        <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <span className="tag tag-neutral">{proposal.status}</span>
+          {proposal.approval_consumed ? <span className="tag tag-neutral">approval consumed</span> : null}
+          {proposal.decided_at ? (
             <Link href={`/receipts/${proposal.proposal_id}`}>
-              <Badge tone="signal">decision receipt</Badge>
+              <span className="tag tag-amber">decision receipt</span>
             </Link>
           ) : null}
         </div>
       </div>
 
-      <ComparisonGrid mandate={mandate} proposal={proposal} evidence={proposal.evidence} />
+      <div className="sec-lbl">Live Checkpoint</div>
+      <Reveal>
+        <ComparisonGrid mandate={mandate} proposal={proposal} />
+      </Reveal>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Panel
-          title="Deterministic pre-checks"
-          aside={<span className="label">run before any model</span>}
-        >
+      <Reveal delay={0.06}>
+        <div className="panel-flat" style={{ margin: '1.25rem 0' }}>
+          <div className="checks-title">Deterministic Checks — run before any model</div>
           <CheckTable checks={proposal.deterministic_checks} />
-          {proposal.deterministic_checks.length > 0 &&
-          proposal.deterministic_checks.every((check) => check.passed) ? (
-            <p className="mt-3 text-[12px] text-ink-faint">
-              All fixed rules pass. A conventional permission system would execute here.
-            </p>
-          ) : null}
-        </Panel>
+        </div>
+      </Reveal>
 
-        <Panel
-          title="Current evidence"
-          aside={<span className="label">retrieved by validators</span>}
-        >
-          <EvidencePanel evidence={proposal.evidence} digest={proposal.evidence_digest} />
-        </Panel>
+      <Divider proposal={proposal} />
+
+      <div className="sec-lbl" style={{ marginTop: '1rem' }}>
+        Evidence &middot; Context
       </div>
+      <Reveal className="grid-evidence" style={{ marginBottom: '1.25rem' }}>
+        <ContextPanel evidence={proposal.evidence} materialChangedFact={proposal.material_changed_fact} />
+        <div className="panel">
+          <div className="panel-head">Evaluation Timeline</div>
+          <Timeline proposal={proposal} />
+        </div>
+      </Reveal>
 
-      <VerdictBanner proposal={proposal} />
+      <Reveal delay={0.06}>
+        <IntentFidelity proposal={proposal} />
+      </Reveal>
 
-      <ExecutionGate proposal={proposal} mandate={mandate} wallet={wallet} onChanged={refresh} />
+      <div className="sec-lbl" style={{ marginTop: '2rem' }}>
+        Verdict
+      </div>
+      <Reveal>
+        <VerdictBanner proposal={proposal} />
+      </Reveal>
 
-      <Panel title="Binding">
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <div className="label mb-1">Mandate commitment at decision</div>
-            <Mono className="break-all">{proposal.mandate_commitment}</Mono>
+      <div style={{ height: '1.5rem' }} />
+
+      <Reveal>
+        <ExecutionGate proposal={proposal} mandate={mandate} wallet={wallet} onChanged={refresh} />
+      </Reveal>
+
+      <div style={{ height: '1.5rem' }} />
+
+      <Reveal>
+        <div className="sot-bar">
+          <div className="sot-l">
+            <span className="sot-dot" />
+            <span className="sot-txt">
+              Authoritative state &mdash; <strong>GenLayer Intelligent Contract</strong>. The
+              frontend renders contract state; it never computes the verdict.
+            </span>
           </div>
-          <div>
-            <div className="label mb-1">Evidence digest</div>
-            <Mono className="break-all">{proposal.evidence_digest || '—'}</Mono>
+          <div className="sot-tags">
+            <span className="sot-tag">Deterministic</span>
+            <span className="sot-tag">Semantic</span>
+            <span className="sot-tag">Consensus</span>
+            <span className="sot-tag">Execution</span>
           </div>
         </div>
-      </Panel>
+      </Reveal>
+
+      <Reveal>
+        <div style={{ marginTop: '1.25rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+          <div>
+            <div className="field-k" style={{ marginBottom: '0.3rem' }}>
+              Mandate commitment at decision
+            </div>
+            <p className="hash">{proposal.mandate_commitment}</p>
+          </div>
+          <div>
+            <div className="field-k" style={{ marginBottom: '0.3rem' }}>
+              Evidence digest
+            </div>
+            <p className="hash">{proposal.evidence_digest || '—'}</p>
+          </div>
+        </div>
+      </Reveal>
     </div>
   );
 }
