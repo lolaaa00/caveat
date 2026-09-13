@@ -125,7 +125,7 @@ export default function NewMandate() {
 
         <Reveal delay={0.04}>
           <Panel title="Hard constraints · decided deterministically, before any model runs">
-            <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(3, 1fr)' }}>
+            <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))' }}>
               <label>
                 <span className="field-k">Budget ceiling (EUR)</span>
                 <input value={budget} onChange={(event) => setBudget(event.target.value.replace(/[^0-9]/g, ''))} className="input" />
@@ -177,7 +177,7 @@ export default function NewMandate() {
 
         <Reveal delay={0.12}>
           <Panel title="Agent and expiry">
-            <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: '1fr 1fr' }}>
+            <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))' }}>
               <label>
                 <span className="field-k">Authorized agent address</span>
                 <input value={agent} onChange={(event) => setAgent(event.target.value)} placeholder="0x…" className="input" />

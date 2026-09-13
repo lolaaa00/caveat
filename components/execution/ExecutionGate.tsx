@@ -293,7 +293,7 @@ const SettlementSection = ({
 
       <TxBanner state={state} onDismiss={reset} />
 
-      <div style={{ display: 'grid', gap: '0.75rem', gridTemplateColumns: '1fr 1fr' }}>
+      <div style={{ display: 'grid', gap: '0.75rem', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
         <label>
           <span className="field-k">Rail</span>
           <select
