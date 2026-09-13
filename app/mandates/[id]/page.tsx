@@ -15,7 +15,7 @@ import { TxBanner } from '@/components/ui/TxBanner';
 
 const VERDICT_TONE = { EXECUTE: 'lime', RECONFIRM: 'amber', BLOCK: 'crimson' } as const;
 const when = (seconds: number) =>
-  seconds ? new Date(seconds * 1000).toISOString().replace('T', ' ').slice(0, 16) + ' UTC' : '—';
+  seconds ? new Date(seconds * 1000).toISOString().replace('T', ' ').slice(0, 16) + ' UTC' : '-';
 
 export default function MandateDetail() {
   const params = useParams<{ id: string }>();
@@ -95,9 +95,9 @@ export default function MandateDetail() {
       <Reveal className="grid-2" style={{ alignItems: 'start' }}>
         <Panel title="Mandate">
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-            <Field label="Purpose">{mandate.purpose_text || '—'}</Field>
-            <Field label="Semantic conditions">{mandate.semantic_conditions || '—'}</Field>
-            <Field label="Reconfirmation policy">{mandate.reconfirm_policy || '—'}</Field>
+            <Field label="Purpose">{mandate.purpose_text || '-'}</Field>
+            <Field label="Semantic conditions">{mandate.semantic_conditions || '-'}</Field>
+            <Field label="Reconfirmation policy">{mandate.reconfirm_policy || '-'}</Field>
             <Field label="Hard constraints">
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
                 {mandate.hard_constraints.map((constraint) => (

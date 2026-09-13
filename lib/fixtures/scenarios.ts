@@ -93,7 +93,7 @@ export interface Scenario {
 export const SCENARIOS: Scenario[] = [
   {
     key: 'a',
-    name: 'Scenario A — context drift',
+    name: 'Scenario A · context drift',
     premise:
       'A formally valid flight. The conference opening then moved earlier, so arriving at 10:30 no longer serves the purpose the mandate was granted for.',
     exercises:
@@ -102,7 +102,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     key: 'b',
-    name: 'Scenario B — intent still satisfied',
+    name: 'Scenario B · intent still satisfied',
     premise:
       'The same mandate, an earlier arrival. Nothing about the principal’s purpose has been broken.',
     exercises: 'The checkpoint should clear the action and open a single-use execution approval.',
@@ -110,7 +110,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     key: 'c',
-    name: 'Scenario C — explicit prohibition',
+    name: 'Scenario C · explicit prohibition',
     premise: 'A non-refundable fare, which the mandate rules out in writing.',
     exercises:
       'A deterministic hard constraint decides this one. No model is invoked and no evidence is fetched.',

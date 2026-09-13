@@ -61,7 +61,7 @@ export const Mono = ({ children, className = '' }: { children: ReactNode; classN
 
 export const AddressChip = ({ value }: { value: string }) => (
   <span className="hash" title={value}>
-    {value ? `${value.slice(0, 6)}…${value.slice(-4)}` : '—'}
+    {value ? `${value.slice(0, 6)}…${value.slice(-4)}` : '-'}
   </span>
 );
 

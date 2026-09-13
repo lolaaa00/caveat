@@ -12,7 +12,7 @@ import { skinFor } from '@/lib/ui/verdict';
 import { Empty } from '@/components/ui/primitives';
 
 const when = (seconds: number) =>
-  seconds ? new Date(seconds * 1000).toISOString().replace('T', ' ').slice(0, 19) + ' UTC' : '—';
+  seconds ? new Date(seconds * 1000).toISOString().replace('T', ' ').slice(0, 19) + ' UTC' : '-';
 
 const GATE = { EXECUTE: 'AUTHORIZED', RECONFIRM: 'LOCKED', BLOCK: 'REFUSED' } as const;
 
@@ -122,7 +122,7 @@ export default function Receipt() {
             </div>
             {proposal.evidence.length === 0 ? (
               <p style={{ fontSize: '0.75rem', color: 'var(--color-faint)' }}>
-                None retrieved — deterministic checks decided this proposal.
+                None retrieved: deterministic checks decided this proposal.
               </p>
             ) : (
               proposal.evidence.map((item) => (
@@ -139,13 +139,13 @@ export default function Receipt() {
 
           <div style={{ marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid rgba(234,243,255,.09)' }}>
             <Line label="GenLayer consensus" value={proposal.verdict || 'PENDING'} />
-            <Line label="Reason" value={proposal.reason_code || '—'} />
+            <Line label="Reason" value={proposal.reason_code || '-'} />
             {proposal.material_changed_fact ? <Line label="Material changed fact" value={proposal.material_changed_fact} /> : null}
             {proposal.short_rationale ? <Line label="Rationale" value={proposal.short_rationale} /> : null}
-            <Line label="Confidence" value={proposal.confidence || '—'} />
+            <Line label="Confidence" value={proposal.confidence || '-'} />
             <Line label="Decided" value={when(proposal.decided_at)} />
             {proposal.reconfirmed_at ? <Line label="Reconfirmed by principal" value={when(proposal.reconfirmed_at)} /> : null}
-            <Line label="Evidence digest" value={proposal.evidence_digest || '—'} />
+            <Line label="Evidence digest" value={proposal.evidence_digest || '-'} />
             <Line label="Mandate commitment" value={proposal.mandate_commitment} />
           </div>
 

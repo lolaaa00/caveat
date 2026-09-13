@@ -11,9 +11,9 @@ export const TxBanner = ({ state, onDismiss }: { state: TxState; onDismiss?: () 
   return (
     <div className={`banner ${cls}`} style={{ marginBottom: '1rem' }}>
       <span>
-        {state.phase === 'pending' && `${state.label} — awaiting consensus…`}
-        {state.phase === 'success' && `${state.label} — accepted`}
-        {state.phase === 'error' && `${state.label} — failed`}
+        {state.phase === 'pending' && `${state.label}: awaiting consensus…`}
+        {state.phase === 'success' && `${state.label}: accepted`}
+        {state.phase === 'error' && `${state.label}: failed`}
       </span>
       {state.hash ? (
         <a href={explorerTx(state.hash)} target="_blank" rel="noreferrer" style={{ textDecoration: 'underline' }}>

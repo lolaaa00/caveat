@@ -46,11 +46,11 @@ export const ExecutionGate = ({ proposal, mandate, wallet, onChanged }: Props) =
           : 'AWAITING CHECKPOINT';
 
   const sub = proposal.approval_consumed
-    ? 'Approval consumed — replay protected'
+    ? 'Approval consumed: replay protected'
     : proposal.executable
-      ? 'One-time approval — ready to consume'
+      ? 'One-time approval: ready to consume'
       : proposal.status === 'BLOCKED'
-        ? 'Contradicts the mandate — cannot be reconfirmed'
+        ? 'Contradicts the mandate: cannot be reconfirmed'
         : proposal.status === 'RECONFIRM_REQUIRED'
           ? 'Awaiting principal reconfirmation'
           : 'No verdict yet';
@@ -238,12 +238,12 @@ const SettlementSection = ({
       <div style={box}>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '0.5rem' }}>
           <span className="field-k" style={{ marginBottom: 0 }}>
-            Settlement — outside the adjudication layer
+            Settlement · outside the adjudication layer
           </span>
           <span className="tag tag-lime">verified on {recorded?.label ?? record.chain}</span>
         </div>
         <p style={{ fontSize: '0.8125rem', color: 'var(--color-text)' }}>
-          {record.amountMinor} minor units to <span className="hash">{record.payee}</span> —{' '}
+          {record.amountMinor} minor units to <span className="hash">{record.payee}</span> ·{' '}
           {record.detail}
         </p>
         {recorded ? (
@@ -268,12 +268,12 @@ const SettlementSection = ({
   return (
     <div style={box}>
       <div className="field-k" style={{ marginBottom: '0.5rem' }}>
-        Settlement — outside the adjudication layer
+        Settlement · outside the adjudication layer
       </div>
       <p style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', marginBottom: '0.875rem', lineHeight: 1.6 }}>
         The approval is consumed, so the action may now execute. GenLayer decided it; it does not
-        settle it. Pay from your own wallet on a testnet — the payment carries the authorization
-        artifact — and it is verified here against the settling chain.
+        settle it. Pay from your own wallet on a testnet: the payment carries the authorization
+        artifact, and it is verified here against the settling chain.
       </p>
 
       {authorization ? (
