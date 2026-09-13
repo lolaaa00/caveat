@@ -74,7 +74,7 @@ export default function DemoMode() {
   const runScenario = async (key: 'a' | 'b' | 'c') => {
     if (!address || !mandateId) return;
     const scenario = SCENARIOS.find((item) => item.key === key)!;
-    await run(`${scenario.name} — checkpoint`, async () => {
+    await run(`${scenario.name} · checkpoint`, async () => {
       const submitted = await caveat.submitProposal(
         address,
         mandateId,
@@ -115,7 +115,7 @@ export default function DemoMode() {
             onClick={() => setFocused(scenario.key)}
           >
             <span className="dc-num">0{i + 1}</span>
-            {scenario.name.split(' — ')[1]?.toUpperCase() ?? scenario.name.toUpperCase()}
+            {scenario.name.split(' · ')[1]?.toUpperCase() ?? scenario.name.toUpperCase()}
             <span className="dc-arrow">&rarr;</span>
             <span className="dc-expect">{results[scenario.key]?.verdict ?? EXPECT[scenario.key]}</span>
           </button>
@@ -125,7 +125,7 @@ export default function DemoMode() {
       <TxBanner state={state} onDismiss={reset} />
 
       <Reveal>
-        <Panel title="Step 1 — the mandate">
+        <Panel title="Step 1 · the mandate">
           <label>
             <span className="field-k">Approved evidence source</span>
             <input value={source} onChange={(event) => setSource(event.target.value)} placeholder={placeholderSource} className="input" />
@@ -134,7 +134,7 @@ export default function DemoMode() {
             <p style={{ marginTop: '0.5rem', fontSize: '0.72rem', color: 'var(--color-amber)', lineHeight: 1.5 }}>
               GenLayer validators fetch this URL themselves, so it must be publicly reachable over
               https. This origin is not. Deploy the app and set NEXT_PUBLIC_EVIDENCE_BASE_URL, or
-              paste a public source above — otherwise evidence retrieval fails closed and every
+              paste a public source above; otherwise evidence retrieval fails closed and every
               scenario returns RECONFIRM for the wrong reason.
             </p>
           ) : null}

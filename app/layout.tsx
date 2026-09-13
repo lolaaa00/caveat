@@ -18,9 +18,9 @@ const jetbrains = JetBrains_Mono({
   display: 'swap',
 });
 
-const TITLE = 'CAVEAT — Autonomous Execution Checkpoint';
+const TITLE = 'CAVEAT · Autonomous Execution Checkpoint';
 const DESCRIPTION =
-  'Permission can stay valid. Intent can change. CAVEAT checks whether an agent’s proposed action still faithfully represents the authority it was given — the final semantic checkpoint before consequential autonomous execution, on GenLayer.';
+  'Permission can stay valid. Intent can change. CAVEAT checks whether an agent’s proposed action still faithfully represents the authority it was given. The final semantic checkpoint before consequential autonomous execution, on GenLayer.';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://caveat-xi.vercel.app'),

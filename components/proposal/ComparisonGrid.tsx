@@ -45,7 +45,7 @@ export const ComparisonGrid = ({ mandate, proposal }: { mandate: Mandate; propos
         <div className="panel-head">Proposed Action</div>
         <div className="kv-item">
           <span className="kv-k">Summary</span>
-          <span className="kv-v">{proposal.action_summary || '—'}</span>
+          <span className="kv-v">{proposal.action_summary || '-'}</span>
         </div>
         {Object.entries(payload).map(([key, value]) => (
           <div key={key} className="kv-item">

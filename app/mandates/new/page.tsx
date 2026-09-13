@@ -112,7 +112,7 @@ export default function NewMandate() {
                 <textarea value={intent} onChange={(event) => setIntent(event.target.value)} rows={3} className="input" />
               </label>
               <label>
-                <span className="field-k">Purpose — why this authority is being granted</span>
+                <span className="field-k">Purpose · why this authority is being granted</span>
                 <textarea value={purpose} onChange={(event) => setPurpose(event.target.value)} rows={2} className="input" />
               </label>
               <label>
@@ -124,7 +124,7 @@ export default function NewMandate() {
         </Reveal>
 
         <Reveal delay={0.04}>
-          <Panel title="Hard constraints — decided deterministically, before any model runs">
+          <Panel title="Hard constraints · decided deterministically, before any model runs">
             <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(3, 1fr)' }}>
               <label>
                 <span className="field-k">Budget ceiling (EUR)</span>
@@ -143,7 +143,7 @@ export default function NewMandate() {
         </Reveal>
 
         <Reveal delay={0.08}>
-          <Panel title="Evidence policy — frozen on activation, never set by the agent">
+          <Panel title="Evidence policy · frozen on activation, never set by the agent">
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <label>
                 <span className="field-k">Approved source</span>
@@ -162,7 +162,7 @@ export default function NewMandate() {
               </label>
               <label>
                 <span className="field-k">
-                  Fallback claim (optional) — recorded as FALLBACK and can never authorize execution
+                  Fallback claim (optional): recorded as FALLBACK and can never authorize execution
                 </span>
                 <input
                   value={fallback}

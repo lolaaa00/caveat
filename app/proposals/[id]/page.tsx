@@ -96,7 +96,7 @@ export default function ProposalCheckpoint() {
 
       <Reveal delay={0.06}>
         <div className="panel-flat" style={{ margin: '1.25rem 0' }}>
-          <div className="checks-title">Deterministic Checks — run before any model</div>
+          <div className="checks-title">Deterministic Checks · run before any model</div>
           <CheckTable checks={proposal.deterministic_checks} />
         </div>
       </Reveal>
@@ -163,7 +163,7 @@ export default function ProposalCheckpoint() {
             <div className="field-k" style={{ marginBottom: '0.3rem' }}>
               Evidence digest
             </div>
-            <p className="hash">{proposal.evidence_digest || '—'}</p>
+            <p className="hash">{proposal.evidence_digest || '-'}</p>
           </div>
         </div>
       </Reveal>
