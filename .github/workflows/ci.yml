@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  contract:
+    name: Contract (direct tests + genvm-lint)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m venv .venv
+      - run: .venv/bin/pip install -r requirements.txt
+      - name: Direct-mode contract tests
+        run: .venv/bin/python -m pytest test/direct -q
+      # genvm-lint's typecheck gate shells out to `pyright` by bare name, so the venv's
+      # bin dir must be on PATH (not just invoked via .venv/bin/genvm-lint) or it reports
+      # "pyright not found" even though it is installed.
+      - name: genvm-lint (check, validate, typecheck, schema)
+        run: |
+          export PATH="$PWD/.venv/bin:$PATH"
+          genvm-lint check contracts/caveat.py
+          genvm-lint validate contracts/caveat.py
+          genvm-lint typecheck contracts/caveat.py
+          genvm-lint schema contracts/caveat.py
+
+  frontend:
+    name: Frontend (typecheck + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_GENLAYER_CHAIN_ID: '61997'

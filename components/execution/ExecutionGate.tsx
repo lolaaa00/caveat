@@ -153,6 +153,7 @@ export const ExecutionGate = ({ proposal, mandate, wallet, onChanged }: Props) =
         {proposal.approval_consumed ? (
           <SettlementSection
             proposal={proposal}
+            mandate={mandate}
             connected={connected}
             address={address}
             allowed={isAgent || isPrincipal}
@@ -179,12 +180,14 @@ export const ExecutionGate = ({ proposal, mandate, wallet, onChanged }: Props) =
  */
 const SettlementSection = ({
   proposal,
+  mandate,
   connected,
   address,
   allowed,
   walletChainIdHex,
 }: {
   proposal: Proposal;
+  mandate: Mandate;
   connected: boolean;
   address: string | null;
   allowed: boolean;
@@ -206,8 +209,9 @@ const SettlementSection = ({
   const config = SETTLEMENT_RAILS[rail];
 
   const verifyAndStore = async (hash: string, chain: SettlementRail) => {
-    const result = await verifySettlement(chain, hash, payee, amount, authorization);
-    if (!result.verified) throw new Error(result.detail);
+    const expectedSenders = [proposal.agent, mandate.principal].filter(Boolean);
+    const result = await verifySettlement(chain, hash, proposal.proposal_id, expectedSenders, payee, amount);
+    if (!result.paymentConfirmed) throw new Error(result.detail);
     const stored: Settlement = {
       proposalId: proposal.proposal_id,
       chain,
@@ -215,8 +219,9 @@ const SettlementSection = ({
       payee: result.payee,
       amountMinor: result.amountMinor,
       authorization,
-      verified: true,
-      detail: result.detail + (result.carriesAuthorization ? ', carries the authorization' : ''),
+      paymentConfirmed: result.paymentConfirmed,
+      authorizedExecution: result.authorizedExecution,
+      detail: result.detail,
       chainRef: result.chainRef,
       recordedAt: Math.floor(Date.now() / 1000),
     };
@@ -240,7 +245,11 @@ const SettlementSection = ({
           <span className="field-k" style={{ marginBottom: 0 }}>
             Settlement · outside the adjudication layer
           </span>
-          <span className="tag tag-lime">verified on {recorded?.label ?? record.chain}</span>
+          {record.authorizedExecution ? (
+            <span className="tag tag-lime">authorized execution, bound on {recorded?.label ?? record.chain}</span>
+          ) : (
+            <span className="tag tag-amber">unverified external payment</span>
+          )}
         </div>
         <p style={{ fontSize: '0.8125rem', color: 'var(--color-text)' }}>
           {record.amountMinor} minor units to <span className="hash">{record.payee}</span> ·{' '}
@@ -257,10 +266,19 @@ const SettlementSection = ({
             {record.txHash}
           </a>
         ) : null}
-        <p style={{ fontSize: '0.68rem', color: 'var(--color-faint)', marginTop: '0.5rem', lineHeight: 1.5 }}>
-          Verified against {recorded?.label ?? record.chain} directly. The contract holds no
-          payment state: it decided, and this executed behind the gate.
-        </p>
+        {record.authorizedExecution ? (
+          <p style={{ fontSize: '0.68rem', color: 'var(--color-faint)', marginTop: '0.5rem', lineHeight: 1.5 }}>
+            This payment carries the exact authorization artifact CAVEAT issued for this decision,
+            independently recomputed from contract state — not merely a plausible-looking transfer.
+          </p>
+        ) : (
+          <p style={{ fontSize: '0.68rem', color: 'var(--color-amber)', marginTop: '0.5rem', lineHeight: 1.5 }}>
+            This is a confirmed payment on {recorded?.label ?? record.chain}, but it is not
+            cryptographically bound to this CAVEAT decision. CAVEAT itself does not enforce or
+            prove this external execution — treat it as an unverified external payment, not as
+            proof the decision was carried out.
+          </p>
+        )}
       </div>
     );
   }

@@ -27,7 +27,7 @@ const asJson = <T,>(raw: unknown): T | null => {
  * is honest here: no verdict is invented or assumed, the call is just asked again.
  */
 const TRANSIENT_PATTERN =
-  /server busy|execution slots|rate limit|too many requests|429|502|503|504|gateway|timed?[ -]?out|econnreset|fetch failed/i;
+  /server busy|execution slots|rate limit|too many requests|429|502|503|504|gateway|timed?[ -]?out|econnreset|failed to fetch|fetch failed|network ?error|load failed/i;
 
 const isTransient = (error: unknown): boolean => {
   const message = error instanceof Error ? error.message : String(error);
@@ -109,6 +109,17 @@ export const proposalIdsForMandate = async (mandateId: string): Promise<string[]
 
 export const isExecutable = async (proposalId: string): Promise<boolean> =>
   Boolean(await read('is_executable', [proposalId]));
+
+/**
+ * The canonical authorization artifact for a consumed proposal, recomputed by the
+ * contract itself from its own state — never trusted from a client cache or from a
+ * value a wallet happened to return earlier. Empty string if the approval was never
+ * consumed. This is the only value settlement verification may bind a payment against.
+ */
+export const getAuthorizationArtifact = async (proposalId: string): Promise<string> => {
+  const raw = await read('authorization_artifact', [proposalId]);
+  return typeof raw === 'string' ? raw : '';
+};
 
 // At most this many reads in flight at once. Studio Next's shared execution pool is
 // small (8 slots at last check); a dashboard with dozens of mandates firing every read

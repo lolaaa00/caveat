@@ -178,9 +178,72 @@ def run_scenario(session: Session, mandate_id: str, name: str, payload: dict, no
     return proposal_id, record
 
 
+def run_stale_scenario(session: Session, evidence_url: str, question: str, schema: str) -> dict:
+    """
+    Live proof of the stale-approval-bypass fix: proposal A executes, sibling proposal B
+    is reconfirmed against the same mandate, and A must then be neither executable nor
+    consumable on the real deployed contract — not just in the direct-mode test suite.
+    """
+    print('\n=== Stale-approval fix, live on Studio Next ===')
+    mandate_id = build_mandate(session, evidence_url, question, schema)
+
+    proposal_a, record_a = run_scenario(
+        session, mandate_id, 'Stale/A', flight(arrival='10:30'),
+        'LOS to AMS, EUR 741, arrives 10:30, refundable (expected to execute)',
+    )
+    if record_a['status'] == 'RECONFIRM_REQUIRED':
+        session.write('principal', 'reconfirm', [proposal_a], 'reconfirm A (pre-condition)')
+    executable_before = session.read('is_executable', [proposal_a])
+    if not executable_before:
+        raise RuntimeError('proposal A must be executable before B is ever touched')
+    print(f'  A is_executable (before B reconfirms) -> {executable_before}')
+
+    proposal_b, record_b = run_scenario(
+        session, mandate_id, 'Stale/B', flight(arrival='06:45'),
+        'LOS to AMS, EUR 741, arrives 06:45, refundable (expected to need reconfirmation)',
+    )
+    if record_b['status'] == 'RECONFIRM_REQUIRED':
+        session.write('principal', 'reconfirm', [proposal_b], 'reconfirm B (moves the commitment)')
+
+    a_after = json.loads(session.read('get_proposal', [proposal_a]))
+    b_after = json.loads(session.read('get_proposal', [proposal_b]))
+    print(f'  A commitment_stale (after B reconfirms) -> {a_after["commitment_stale"]}')
+    print(f'  A is_executable   (after B reconfirms) -> {session.read("is_executable", [proposal_a])}')
+    print(f'  B is_executable   (after its own reconfirm) -> {session.read("is_executable", [proposal_b])}')
+
+    revert_message = None
+    try:
+        session.write('agent', 'consume_approval', [proposal_a], 'consume_approval A (expected to revert)')
+    except Exception as error:  # noqa: BLE001 - recording the on-chain revert is the point
+        revert_message = str(error)
+        print(f'  consume_approval(A) reverted as expected: {revert_message[:200]}')
+
+    receipt_b = session.write('agent', 'consume_approval', [proposal_b], 'consume_approval B')
+    raw_artifact_b = _returned_value(receipt_b)
+    readable = None
+    if isinstance(raw_artifact_b, dict):
+        readable = ((raw_artifact_b.get('payload') or {}).get('readable'))
+    artifact_b = readable.strip('"') if isinstance(readable, str) else raw_artifact_b
+    canonical_b = session.read('authorization_artifact', [proposal_b])
+    print(f'  B consumed; artifact  -> {artifact_b}')
+    print(f'  B canonical artifact  -> {canonical_b}')
+
+    return {
+        'mandate_id': mandate_id,
+        'proposal_a': proposal_a,
+        'proposal_b': proposal_b,
+        'a_commitment_stale_after_b_reconfirms': a_after['commitment_stale'],
+        'a_is_executable_after_b_reconfirms': session.read('is_executable', [proposal_a]),
+        'a_consume_reverted': revert_message is not None,
+        'a_consume_revert_message': revert_message,
+        'b_artifact': artifact_b,
+        'b_canonical_artifact_matches': artifact_b == canonical_b,
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument('--scenario', choices=['a', 'b', 'c', 'all'], default='all')
+    parser.add_argument('--scenario', choices=['a', 'b', 'c', 'stale', 'all'], default='all')
     parser.add_argument('--evidence-url', default=None)
     parser.add_argument(
         '--question',
@@ -211,8 +274,27 @@ def main() -> int:
     agent = funded_account(bootstrap, ensure_key('CAVEAT_AGENT_PRIVATE_KEY', env), 'agent')
     session = Session(address, principal, agent)
 
-    mandate_id = build_mandate(session, evidence_url, options.question, options.schema)
     results = {}
+
+    if options.scenario == 'stale':
+        results['stale'] = run_stale_scenario(session, evidence_url, options.question, options.schema)
+        evidence_path = ARTIFACTS / 'e2e.stale.studio_devnet.json'
+        evidence_path.write_text(
+            json.dumps(
+                {
+                    'contract_address': address,
+                    'scenario': results['stale'],
+                    'transactions': session.transactions,
+                    'ran_at': datetime.now(timezone.utc).isoformat(),
+                },
+                indent=2,
+            )
+            + '\n'
+        )
+        print(f'\n  {len(session.transactions)} transactions recorded in {evidence_path.name}')
+        return 0
+
+    mandate_id = build_mandate(session, evidence_url, options.question, options.schema)
 
     if options.scenario in ('a', 'all'):
         proposal_id, record = run_scenario(

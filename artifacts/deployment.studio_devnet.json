@@ -1,10 +1,10 @@
 {
   "network": "studio_devnet",
   "chain_id": 61997,
-  "contract_address": "0x0EF51C68BC0D1394b5F3880e593867ddDd0b7E31",
-  "deployment_tx": "0x4b9b56fc29947bcf551cc3d319fc49e682c608db8b1680760ff6849ff0045160",
+  "contract_address": "0x2274Ce90b9A91016c3935a5807e684c5B99Da5c7",
+  "deployment_tx": "0x2209a51915923425ebf4ec6d681655826e5a0d732967d2603380e842445be359",
   "deployer": "0x19Fbc43de9F8dbcE33FBa7ad34e9F4eE49E565E1",
-  "deployed_at": "2026-09-09T00:24:17.899827+00:00",
-  "explorer_contract": "https://explorer-studio-dev.genlayer.com/address/0x0EF51C68BC0D1394b5F3880e593867ddDd0b7E31",
-  "explorer_tx": "https://explorer-studio-dev.genlayer.com/tx/0x4b9b56fc29947bcf551cc3d319fc49e682c608db8b1680760ff6849ff0045160"
+  "deployed_at": "2026-09-13T23:43:10.265785+00:00",
+  "explorer_contract": "https://explorer-studio-dev.genlayer.com/address/0x2274Ce90b9A91016c3935a5807e684c5B99Da5c7",
+  "explorer_tx": "https://explorer-studio-dev.genlayer.com/tx/0x2209a51915923425ebf4ec6d681655826e5a0d732967d2603380e842445be359"
 }
