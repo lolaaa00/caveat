@@ -104,7 +104,14 @@ def funded_account(client, private_key: str, label: str):
     return account
 
 
-def require_success(client, tx_hash, what: str, wait_until: str = 'decided') -> dict:
+def require_success(
+    client,
+    tx_hash,
+    what: str,
+    wait_until: str = 'decided',
+    interval: int = 3000,
+    retries: int = 60,
+) -> dict:
     """
     Consensus outcome and GenVM execution result are two different things. Under
     Consensus v0.6 a transaction can reach a consensus outcome while its execution
@@ -112,10 +119,16 @@ def require_success(client, tx_hash, what: str, wait_until: str = 'decided') -> 
 
     Waits for a stored decision by default. Finalization on Studio Next lags the
     decision by longer than a demo can wait; pass wait_until="finalized" where the
-    stronger guarantee is actually needed.
+    stronger guarantee is actually needed. The default retry budget (up to 3 minutes)
+    accommodates a real non-deterministic evaluation: validators fetching a live URL
+    and running an LLM judgement each take real wall-clock time.
     """
     receipt = client.wait_for_transaction_receipt(
-        transaction_hash=tx_hash, wait_until=wait_until, full_transaction=True
+        transaction_hash=tx_hash,
+        wait_until=wait_until,
+        full_transaction=True,
+        interval=interval,
+        retries=retries,
     )
     consensus = receipt.get('status_name') or receipt.get('result_name') or receipt.get('status')
     execution = receipt.get('tx_execution_result_name')

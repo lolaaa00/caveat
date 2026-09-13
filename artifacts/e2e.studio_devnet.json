@@ -1,34 +1,67 @@
 {
   "contract_address": "0x0EF51C68BC0D1394b5F3880e593867ddDd0b7E31",
-  "evidence_source": "https://example.com/",
-  "mandate_id": "MND-0001",
+  "evidence_source": "https://caveat-xi.vercel.app/evidence/amsterdam-2026-schedule.html",
+  "mandate_id": "MND-0005",
   "scenarios": {
+    "a": {
+      "proposal": "CAV-0006",
+      "verdict": "BLOCK"
+    },
+    "b": {
+      "proposal": "CAV-0007",
+      "verdict": "EXECUTE"
+    },
     "c": {
-      "proposal": "CAV-0002",
+      "proposal": "CAV-0008",
       "verdict": "BLOCK"
     }
   },
   "transactions": [
     {
       "label": "create_mandate",
-      "tx": "0x5c21ee14bc134555c3ace2489ff53c5923c4b540572b3f4fa877ea7b8d5533b1",
-      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x5c21ee14bc134555c3ace2489ff53c5923c4b540572b3f4fa877ea7b8d5533b1"
+      "tx": "0x2bafbf032c9b3619cb9a0a6095c035bbb187a7cf7d94ddeba8b93c4aaee379a5",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x2bafbf032c9b3619cb9a0a6095c035bbb187a7cf7d94ddeba8b93c4aaee379a5"
     },
     {
       "label": "activate_mandate",
-      "tx": "0xaf82611f46b58f4ea9291e94905e54684a5ab2bf48232fb05b3629d66ab04531",
-      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0xaf82611f46b58f4ea9291e94905e54684a5ab2bf48232fb05b3629d66ab04531"
+      "tx": "0x66f059eb9c67faff60eec7241d5ff91255f38e895aeb82cd183b49686e95361e",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x66f059eb9c67faff60eec7241d5ff91255f38e895aeb82cd183b49686e95361e"
     },
     {
       "label": "submit_proposal",
-      "tx": "0x2333e4c6960c6a6fefccbe155b011985558b89b8792831497f719368411f3444",
-      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x2333e4c6960c6a6fefccbe155b011985558b89b8792831497f719368411f3444"
+      "tx": "0x16ddce029b32b3cb40b2ce488bf8aada48d2f17e78d641ba1b6fb4df9dd0613c",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x16ddce029b32b3cb40b2ce488bf8aada48d2f17e78d641ba1b6fb4df9dd0613c"
     },
     {
       "label": "evaluate_proposal",
-      "tx": "0x7ecc8e19ec41b5414b2130c959a30845370707ede2bec7fee4cbbba64b4c9bb7",
-      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x7ecc8e19ec41b5414b2130c959a30845370707ede2bec7fee4cbbba64b4c9bb7"
+      "tx": "0x84ca1d845ec5bdcb85f4013613b3526d91f3570e235974fdd90ef1d6f0bfa62a",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x84ca1d845ec5bdcb85f4013613b3526d91f3570e235974fdd90ef1d6f0bfa62a"
+    },
+    {
+      "label": "submit_proposal",
+      "tx": "0x21a86134650d94af214017f47a649d2b043755cc2b71200fd61fe24461206769",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x21a86134650d94af214017f47a649d2b043755cc2b71200fd61fe24461206769"
+    },
+    {
+      "label": "evaluate_proposal",
+      "tx": "0xf20449c9fb57de6e5535a0137e5e98e61fc76311cbd4f3554bc114decccf6b07",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0xf20449c9fb57de6e5535a0137e5e98e61fc76311cbd4f3554bc114decccf6b07"
+    },
+    {
+      "label": "consume_approval",
+      "tx": "0x33c84d611b9d9b4d37280fc09371630b94131db1c0cb5d25801fdfa4dfd4fa96",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x33c84d611b9d9b4d37280fc09371630b94131db1c0cb5d25801fdfa4dfd4fa96"
+    },
+    {
+      "label": "submit_proposal",
+      "tx": "0x303bb4c9e72991232113742df3e256481e28e252e7dbcd50d1bc5a8f18600f87",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x303bb4c9e72991232113742df3e256481e28e252e7dbcd50d1bc5a8f18600f87"
+    },
+    {
+      "label": "evaluate_proposal",
+      "tx": "0x61bf7d482b1323c6e4de121476c8312ebecf0b7f33ef482a85c09182ad66de3d",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x61bf7d482b1323c6e4de121476c8312ebecf0b7f33ef482a85c09182ad66de3d"
     }
   ],
-  "ran_at": "2026-09-09T00:25:09.262161+00:00"
+  "ran_at": "2026-09-13T10:36:52.549910+00:00"
 }
