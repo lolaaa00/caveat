@@ -4,27 +4,42 @@
  * GenLayer decides whether an action may execute. It does not move value and does not
  * verify payments. So the payment leg is verified here, by reading the settling chain's
  * own public RPC directly — free, keyless, testnet only.
+ *
+ * `verified: true` is a claim that a specific external transaction executed the specific
+ * decision CAVEAT authorized. That claim requires binding, not just a plausible-looking
+ * payment: the transaction must carry the canonical authorization artifact — fetched
+ * fresh from the contract's own `authorization_artifact` view, never trusted from a
+ * client-supplied value — and its sender, destination, asset, and amount must match what
+ * the proposal and mandate actually specify. A rail that cannot establish that binding
+ * (Solana, here) must never be reported as authorized execution: it is at most a
+ * confirmed, unverified external payment, and is labeled as such.
  */
 
+import { getAuthorizationArtifact } from '@/lib/genlayer/caveat';
 import { SETTLEMENT_RAILS, type SettlementRail } from '@/lib/config';
 
 export interface VerificationResult {
-  verified: boolean;
+  /** The transfer itself was found, succeeded on chain, and met the stated payee/amount. */
+  paymentConfirmed: boolean;
+  /**
+   * `paymentConfirmed` AND cryptographically bound to this proposal's authorization
+   * artifact AND sent by a wallet the mandate actually authorizes to act. Only this
+   * flag may be described to a user as "CAVEAT authorized this execution."
+   */
+  authorizedExecution: boolean;
   detail: string;
   payee: string;
   amountMinor: string;
   chainRef: string;
-  /** True when the payment itself carries the authorization artifact on chain. */
-  carriesAuthorization: boolean;
 }
 
 const failed = (detail: string): VerificationResult => ({
-  verified: false,
+  paymentConfirmed: false,
+  authorizedExecution: false,
   detail,
   payee: '',
   amountMinor: '0',
   chainRef: '',
-  carriesAuthorization: false,
 });
 
 const rpc = async (url: string, body: unknown): Promise<Record<string, unknown>> => {
@@ -39,9 +54,10 @@ const rpc = async (url: string, body: unknown): Promise<Record<string, unknown>>
 
 const verifySepolia = async (
   txHash: string,
+  expectedSenders: string[],
   payee: string,
   amountMinor: bigint,
-  authorization: string,
+  artifact: string,
 ): Promise<VerificationResult> => {
   const url = SETTLEMENT_RAILS.sepolia.rpcUrl;
   const [receiptResponse, txResponse] = await Promise.all([
@@ -59,23 +75,60 @@ const verifySepolia = async (
   if (!receipt.blockNumber) return failed('The transaction is not yet in a block.');
 
   const destination = String(transaction.to ?? '').toLowerCase();
+  const sender = String(transaction.from ?? '').toLowerCase();
   const value = BigInt(String(transaction.value ?? '0x0'));
+
   if (destination !== payee.toLowerCase()) {
-    return failed('The transaction paid a different address.');
+    return failed('The transaction paid a different address than the stated payee.');
   }
   if (value < amountMinor) return failed('The transaction paid less than the stated amount.');
 
+  const paymentConfirmed = true;
+  const chainRef = BigInt(String(receipt.blockNumber)).toString();
+
+  if (!expectedSenders.some((addr) => addr.toLowerCase() === sender)) {
+    return {
+      paymentConfirmed,
+      authorizedExecution: false,
+      detail: `Confirmed in block ${chainRef}, but sent from a wallet the mandate does not authorize (neither the agent nor the principal).`,
+      payee: destination,
+      amountMinor: value.toString(),
+      chainRef,
+    };
+  }
+
+  if (artifact === '') {
+    return {
+      paymentConfirmed,
+      authorizedExecution: false,
+      detail: `Confirmed in block ${chainRef}, but this proposal's approval has not been consumed on chain — there is no authorization artifact to bind against.`,
+      payee: destination,
+      amountMinor: value.toString(),
+      chainRef,
+    };
+  }
+
   const input = String(transaction.input ?? '0x').toLowerCase();
-  const carriesAuthorization =
-    authorization !== '' && input.includes(authorization.replace(/^0x/, '').toLowerCase());
+  const carriesArtifact = input.includes(artifact.replace(/^0x/, '').toLowerCase());
+
+  if (!carriesArtifact) {
+    return {
+      paymentConfirmed,
+      authorizedExecution: false,
+      detail: `Confirmed in block ${chainRef}, but its calldata does not carry the exact authorization artifact for this decision — it cannot be treated as authorized execution.`,
+      payee: destination,
+      amountMinor: value.toString(),
+      chainRef,
+    };
+  }
 
   return {
-    verified: true,
-    detail: `Confirmed in block ${BigInt(String(receipt.blockNumber)).toString()}`,
+    paymentConfirmed,
+    authorizedExecution: true,
+    detail: `Confirmed in block ${chainRef}, sent by an authorized wallet, carrying the exact authorization artifact for this decision.`,
     payee: destination,
     amountMinor: value.toString(),
-    chainRef: BigInt(String(receipt.blockNumber)).toString(),
-    carriesAuthorization,
+    chainRef,
   };
 };
 
@@ -117,13 +170,17 @@ const verifySolanaDevnet = async (
     if (lamports < amountMinor) {
       return failed('The transfer paid less than the stated amount.');
     }
+    // This rail has no mechanism to carry the authorization artifact (no calldata
+    // field), so no on-chain link back to the CAVEAT decision can ever be established
+    // here. Reporting this as authorized execution would be a claim this check cannot
+    // support — so it never does, regardless of how the payment itself looks.
     return {
-      verified: true,
-      detail: `Finalized transfer of ${lamports.toString()} lamports`,
+      paymentConfirmed: true,
+      authorizedExecution: false,
+      detail: `Finalized transfer of ${lamports.toString()} lamports — an unverified external payment. This rail cannot carry the authorization artifact, so it cannot be bound to this decision.`,
       payee,
       amountMinor: lamports.toString(),
       chainRef: String(result.slot ?? ''),
-      carriesAuthorization: false,
     };
   }
 
@@ -133,15 +190,18 @@ const verifySolanaDevnet = async (
 export const verifySettlement = async (
   rail: SettlementRail,
   txHash: string,
+  proposalId: string,
+  expectedSenders: string[],
   payee: string,
   amountMinor: string,
-  authorization: string,
 ): Promise<VerificationResult> => {
   try {
     const amount = BigInt(amountMinor);
-    return rail === 'sepolia'
-      ? await verifySepolia(txHash, payee, amount, authorization)
-      : await verifySolanaDevnet(txHash, payee, amount);
+    if (rail === 'sepolia') {
+      const artifact = await getAuthorizationArtifact(proposalId);
+      return await verifySepolia(txHash, expectedSenders, payee, amount, artifact);
+    }
+    return await verifySolanaDevnet(txHash, payee, amount);
   } catch (error) {
     // Never report a payment as verified because the check itself failed.
     return failed(

@@ -82,7 +82,15 @@ export interface Settlement {
   amountMinor: string;
   /** The authorization artifact returned by consume_approval that permitted this payment. */
   authorization: string;
-  verified: boolean;
+  /** The transfer itself was found, succeeded on chain, and met the stated payee/amount. */
+  paymentConfirmed: boolean;
+  /**
+   * True only when the payment is cryptographically bound to this proposal's canonical
+   * authorization artifact and sent by a wallet the mandate authorizes. A rail that
+   * cannot carry the artifact (e.g. Solana here) can never set this true, no matter how
+   * the payment itself looks — it is reported as an unverified external payment instead.
+   */
+  authorizedExecution: boolean;
   detail: string;
   chainRef: string;
   recordedAt: number;

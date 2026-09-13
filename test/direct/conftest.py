@@ -104,8 +104,16 @@ def _as_wire_json(payload: dict) -> str:
     return json.dumps(json.dumps(payload))
 
 
-def extraction_response(claim: str) -> str:
-    return _as_wire_json({'claim': claim, 'quote': claim + '  Opening session and keynote'})
+def extraction_response(claim: str, excerpt: str | None = None) -> str:
+    """
+    The contract now requires the excerpt to be a verbatim substring of the fetched
+    page (normalized for whitespace/case) or the whole extraction is discarded. The
+    default excerpt here is a real substring of `schedule_page(claim)` — valid whenever
+    a test's mocked page uses that same value as its opening time. A test exercising a
+    mismatch (hallucinated/unsupported excerpt) should pass `excerpt` explicitly.
+    """
+    resolved_excerpt = excerpt if excerpt is not None else claim + '  Opening session and keynote'
+    return _as_wire_json({'claim': claim, 'excerpt': resolved_excerpt})
 
 
 def judgement_response(verdict, reason_code, fact='', confidence='HIGH', rationale='') -> str:
