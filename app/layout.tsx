@@ -18,10 +18,25 @@ const jetbrains = JetBrains_Mono({
   display: 'swap',
 });
 
+const TITLE = 'CAVEAT — Autonomous Execution Checkpoint';
+const DESCRIPTION =
+  'Permission can stay valid. Intent can change. CAVEAT checks whether an agent’s proposed action still faithfully represents the authority it was given — the final semantic checkpoint before consequential autonomous execution, on GenLayer.';
+
 export const metadata: Metadata = {
-  title: 'CAVEAT — Autonomous Execution Checkpoint',
-  description:
-    'Permission can stay valid. Intent can change. CAVEAT checks whether an agent’s proposed action still faithfully represents the authority it was given.',
+  metadataBase: new URL('https://caveat-xi.vercel.app'),
+  title: TITLE,
+  description: DESCRIPTION,
+  openGraph: {
+    title: TITLE,
+    description: DESCRIPTION,
+    type: 'website',
+    siteName: 'CAVEAT',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: TITLE,
+    description: DESCRIPTION,
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
