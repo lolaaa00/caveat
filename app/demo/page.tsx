@@ -8,6 +8,7 @@ import {
   MANDATE_TEMPLATE,
   SCENARIOS,
   evidenceUrl,
+  flight,
   isEvidenceReachable,
   summarise,
 } from '@/lib/fixtures/scenarios';
@@ -155,7 +156,7 @@ export default function DemoMode() {
         </Panel>
       </Reveal>
 
-      <div className="grid-evidence" style={{ gridTemplateColumns: 'repeat(3, 1fr)', marginTop: '1.25rem' }}>
+      <div style={{ display: 'grid', gap: '1.25rem', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', marginTop: '1.25rem' }}>
         {SCENARIOS.map((scenario, i) => {
           const result = results[scenario.key];
           const skin = skinFor(result?.verdict ?? '');
@@ -205,6 +206,116 @@ export default function DemoMode() {
           <Empty>Run the scenarios above to see EXECUTE, RECONFIRM and BLOCK from one mandate.</Empty>
         </div>
       ) : null}
+
+      <div className="sec-lbl" style={{ marginTop: '2.5rem' }}>
+        Try To Break It Yourself
+      </div>
+      <Reveal>
+        <TryToBreakIt address={address} mandateId={mandateId} connected={connected} />
+      </Reveal>
     </div>
   );
 }
+
+/**
+ * The three scenarios above are pre-written. This isn't: pick any arrival time, price
+ * and refundability, and the contract decides for real, live evidence and all — the
+ * same way it would for a scenario nobody wrote in advance.
+ */
+const TryToBreakIt = ({
+  address,
+  mandateId,
+  connected,
+}: {
+  address: string | null;
+  mandateId: string | null;
+  connected: boolean;
+}) => {
+  const { state, run, reset } = useTx();
+  const [arrival, setArrival] = useState('09:15');
+  const [price, setPrice] = useState('880');
+  const [refundable, setRefundable] = useState(true);
+  const [result, setResult] = useState<Proposal | null>(null);
+
+  const payload = flight({
+    arrival_local_time: arrival,
+    price_eur: Number(price) || 0,
+    refundable,
+  });
+
+  const tryIt = async () => {
+    if (!address || !mandateId) return;
+    setResult(null);
+    await run('Custom proposal · checkpoint', async () => {
+      const submitted = await caveat.submitProposal(address, mandateId, JSON.stringify(payload), summarise(payload));
+      const ids = await caveat.proposalIdsForMandate(mandateId);
+      const proposalId = typeof submitted.returned === 'string' ? submitted.returned : ids[ids.length - 1];
+      await caveat.evaluateProposal(address, proposalId);
+      const decided = await caveat.getProposal(proposalId);
+      setResult(decided);
+      return submitted;
+    });
+  };
+
+  return (
+    <div className="panel" style={result ? skinVars(skinFor(result.verdict)) : undefined}>
+      <div className="panel-head">Build your own proposal</div>
+      <p style={{ fontSize: '0.8125rem', color: 'var(--color-muted)', lineHeight: 1.6, marginBottom: '1rem' }}>
+        Same mandate as above, same live evidence source. Pick numbers nobody scripted for
+        you and submit them against the real contract — there is no scenario key backing
+        this one, and no verdict shown until the checkpoint actually decides.
+      </p>
+
+      <TxBanner state={state} onDismiss={reset} />
+
+      <div style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))' }}>
+        <label>
+          <span className="field-k">Arrival time (24h)</span>
+          <input value={arrival} onChange={(event) => setArrival(event.target.value)} placeholder="HH:MM" className="input" />
+        </label>
+        <label>
+          <span className="field-k">Price (EUR)</span>
+          <input value={price} onChange={(event) => setPrice(event.target.value.replace(/[^0-9]/g, ''))} className="input" />
+        </label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '1.5rem' }}>
+          <input type="checkbox" checked={refundable} onChange={(event) => setRefundable(event.target.checked)} />
+          <span style={{ fontSize: '0.8125rem' }}>Refundable</span>
+        </label>
+      </div>
+
+      <div className="evi-source" style={{ marginTop: '1rem', display: 'block' }}>
+        <div className="field-k" style={{ marginBottom: '0.3rem' }}>
+          Proposed action
+        </div>
+        <p className="hash">{summarise(payload)}</p>
+      </div>
+
+      <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.875rem', flexWrap: 'wrap' }}>
+        <Button
+          tone="crimson"
+          disabled={!connected || !mandateId || state.phase === 'pending'}
+          onClick={() => void tryIt()}
+        >
+          Submit And Judge
+        </Button>
+        {!mandateId ? (
+          <span style={{ fontSize: '0.72rem', color: 'var(--color-faint)' }}>
+            Create the demo mandate above first.
+          </span>
+        ) : null}
+      </div>
+
+      {result ? (
+        <div style={{ marginTop: '1.25rem' }}>
+          <Tag tone={VERDICT_TONE[result.verdict as keyof typeof VERDICT_TONE]}>{result.verdict}</Tag>
+          <p style={{ marginTop: '0.5rem', fontSize: '0.8125rem', color: 'var(--color-text)' }}>
+            {result.short_rationale}
+          </p>
+          <Link href={`/proposals/${result.proposal_id}`} className="hash" style={{ marginTop: '0.5rem', display: 'inline-block', color: 'var(--color-crimson-hot)' }}>
+            open checkpoint {result.proposal_id} &rarr;
+          </Link>
+        </div>
+      ) : null}
+    </div>
+  );
+};

@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useState } from 'react';
 import { CHAIN_ID, explorerAddress, CONTRACT_ADDRESS, isConfigured } from '@/lib/config';
+import { fundFromFaucet } from '@/lib/genlayer/faucet';
 import { useWallet } from '@/lib/wallet/useWallet';
 
 const NAV = [
@@ -41,8 +43,51 @@ export const TopBar = () => {
           </li>
         </ul>
       </div>
-      <WalletControl wallet={wallet} />
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+        {wallet.status === 'ready' && wallet.address ? <FaucetButton address={wallet.address} /> : null}
+        <WalletControl wallet={wallet} />
+      </div>
     </nav>
+  );
+};
+
+/**
+ * Studio Next's own faucet, one click away. The single biggest piece of friction
+ * between a first-time visitor and actually trying the live checkpoint is having no
+ * testnet GEN — this removes it without sending anyone off to hunt for a faucet link.
+ */
+const FaucetButton = ({ address }: { address: string }) => {
+  const [state, setState] = useState<'idle' | 'pending' | 'done' | 'error'>('idle');
+
+  const fund = async () => {
+    setState('pending');
+    try {
+      await fundFromFaucet(address);
+      setState('done');
+    } catch {
+      setState('error');
+    }
+  };
+
+  if (state === 'done') {
+    return (
+      <span className="chip-wallet ok" style={{ cursor: 'default' }}>
+        <span className="wc-dot" />
+        Funded
+      </span>
+    );
+  }
+
+  return (
+    <button
+      className="chip-wallet warn"
+      disabled={state === 'pending'}
+      onClick={() => void fund()}
+      title="Fund this wallet with testnet GEN from the Studio Next faucet"
+    >
+      <span className="wc-dot" />
+      {state === 'pending' ? 'Funding…' : state === 'error' ? 'Faucet failed, retry' : 'Get testnet GEN'}
+    </button>
   );
 };
 

@@ -60,8 +60,12 @@ export default function Dashboard() {
         ) : null}
 
         <Reveal
-          className="grid-evidence"
-          style={{ gridTemplateColumns: 'repeat(4, 1fr)', marginBottom: '2rem' }}
+          style={{
+            display: 'grid',
+            gap: '1.25rem',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+            marginBottom: '2rem',
+          }}
         >
           <Metric label="Active Mandates" value={active.length} />
           <Metric label="Awaiting Checkpoint" value={pending.length} />
