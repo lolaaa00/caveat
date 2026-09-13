@@ -2,6 +2,16 @@
 
 ## Setup before you present
 
+**Live and already deployed:** the console is at
+[caveat-xi.vercel.app](https://caveat-xi.vercel.app), contract `0x0EF51C68BC0D1394b5F3880e593867ddDd0b7E31`
+on chain 61997, evidence source already public. Open the live URL, connect MetaMask,
+approve the switch to chain 61997, and go to `/demo` — no setup needed. All three
+verdicts below have already been proven live on chain once (see the README's
+"Deployment" section for the transaction links); running them again during the demo
+produces a fresh, equally real instance of the same outcome.
+
+To run against your own deployment instead:
+
 1. `npm run deploy` — deploys to Studio Next and writes the address into `.env`.
 2. Make the evidence source publicly reachable. GenLayer validators fetch it themselves,
    so `localhost` cannot work. Either deploy the app (its own `/evidence/…` pages then
@@ -104,7 +114,7 @@ Never present a fixture as a verdict. If the network is down, say the network is
 ## Command reference
 
 ```bash
-npm run test:contract      # 68 direct tests, no network
+npm run test:contract      # 60 direct tests, no network
 npm run lint:contract      # genvm-lint check + validate + typecheck
 npm run deploy             # deploy to Studio Next (chain 61997)
 python3 scripts/e2e.py     # full lifecycle on chain, writes artifacts/

@@ -37,8 +37,14 @@ INTENT = (
 )
 PURPOSE = 'Attend the conference in full, including the opening session.'
 SEMANTIC = (
-    'The traveller must land at the destination before the conference opening session '
-    'begins. Never book a non-refundable flight.'
+    'The traveller should land at the destination before the conference opening session '
+    'begins, because the opening session is why this trip is being taken. If the current '
+    'schedule means the flight would now arrive after the opening session has already '
+    'started, that is a change in circumstances since this mandate was granted, not a '
+    'violation of it: pause and get my explicit reconfirmation rather than booking, and '
+    'do not treat it as an outright prohibition. Never book a non-refundable flight '
+    'under any circumstance; that prohibition is absolute and is never subject to '
+    'reconfirmation.'
 )
 HARD_CONSTRAINTS = [
     {'label': 'Budget', 'field': 'price_eur', 'op': 'lte', 'value': 900},
