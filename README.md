@@ -80,6 +80,8 @@ none of them; it reads state and submits signed transactions.
 
 | | |
 | --- | --- |
+| Live console | **[caveat-xi.vercel.app](https://caveat-xi.vercel.app)** |
+| Repository | **[github.com/lolaaa00/caveat](https://github.com/lolaaa00/caveat)** |
 | Network | GenLayer Studio Next / Studio-dev |
 | Chain ID | **61997** |
 | Contract | [`0x0EF51C68BC0D1394b5F3880e593867ddDd0b7E31`](https://explorer-studio-dev.genlayer.com/address/0x0EF51C68BC0D1394b5F3880e593867ddDd0b7E31) |
@@ -90,18 +92,21 @@ none of them; it reads state and submits signed transactions.
 Studio Next is a resettable preview network. If the deployment has been reset, redeploy
 with `npm run deploy` — it takes about a minute and writes fresh evidence artifacts.
 
-**Proven on chain** (see `test/integration/` and `artifacts/`): deployment, mandate
-creation and activation, proposal submission, `BLOCK` from deterministic checks with no
-model call, live evidence retrieval and semantic judgement under validator consensus
-returning a structured verdict, principal reconfirmation, the one-time approval, and a
-rejected replay.
+### All three verdicts, proven live
 
-**Not yet demonstrated on chain:** a semantic `EXECUTE`. That needs an approved evidence
-source that actually states the conference opening time, and GenLayer validators fetch
-the source themselves — so it has to be publicly reachable, which a local dev server is
-not. The pages are ready in `public/evidence/`; host them (deploy the app, or set
-`NEXT_PUBLIC_EVIDENCE_BASE_URL` to any public https origin serving them) and Scenario B
-completes. `EXECUTE` is fully covered in the direct tests today.
+Every outcome below ran against the deployed contract on chain 61997 — real validators,
+real web retrieval against the publicly hosted [evidence page](https://caveat-xi.vercel.app/evidence/amsterdam-2026-schedule.html),
+real LLM judgement under consensus, real transactions. One mandate (`MND-0017`), three
+proposals, three verdicts. Full record in `artifacts/e2e.studio_devnet.json`.
+
+| Scenario | Proposal | Verdict | What happened on chain |
+| --- | --- | --- | --- |
+| A — context drift | [`CAV-0018`](https://explorer-studio-dev.genlayer.com/tx/0x03d578f03b70a1e2b4bdc5660e563d0bd6a6bd4574eeaec8794e63166ba74f00) | **RECONFIRM** | Validators fetched the live schedule (`08:00`), judged the 10:30 arrival against the mandate, locked execution — then the principal [reconfirmed](https://explorer-studio-dev.genlayer.com/tx/0x8d2e0ecdf88bd94fa0e69f03ef7120f8ab56d20281a7fdfb13be82742f2fec48) and execution unlocked |
+| B — intent satisfied | [`CAV-0019`](https://explorer-studio-dev.genlayer.com/tx/0xc28ebe27d6d90a906ba81e24e64d2f010ab5cb7533efbe26f04031d6f71e0dd0) | **EXECUTE** | Same live evidence, 06:45 arrival — checkpoint cleared, approval opened, then [consumed](https://explorer-studio-dev.genlayer.com/tx/0x0ac924b1bef5a82522fe0477e476080bad17a8ca8cc1120d3460140f0a8da21e) exactly once |
+| C — explicit prohibition | [`CAV-0020`](https://explorer-studio-dev.genlayer.com/tx/0x4a7a46e5f6c35a5f12dddb9793244a05049f8ddddb212f975880eeb935b76d1e) | **BLOCK** | Non-refundable fare — decided by a deterministic pre-check, no evidence fetched, no model invoked |
+
+Also proven on chain (`test/integration/`): deployment, mandate lifecycle, the one-time
+execution gate, and a rejected replay.
 
 > Studio Next (61997) is **not** StudioNet (61999). They are different deployments with
 > different chain IDs, and evidence from one is not evidence for the other.
