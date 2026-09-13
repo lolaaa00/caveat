@@ -39,7 +39,7 @@ export default function Dashboard() {
         </h1>
         <p className="hero-sub">
           CAVEAT checks whether an agent&rsquo;s proposed action still faithfully represents the
-          authority it was given &mdash; the final semantic checkpoint before consequential
+          authority it was given: the final semantic checkpoint before consequential
           autonomous execution.
         </p>
         <div className="hero-cta">

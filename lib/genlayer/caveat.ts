@@ -51,18 +51,33 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 5): Promise<T> {
   throw lastError;
 }
 
-/** Runs async work over `items` with at most `limit` in flight, instead of firing every
- *  call at once — the shape most likely to exhaust a small shared execution pool. */
+/**
+ * Runs async work over `items` with at most `limit` in flight, and a minimum spacing
+ * between call starts — not just fewer calls at once, but fewer calls per second.
+ *
+ * Studio Next enforces "max 20 gen_call/sim_call requests per 10s, per contract
+ * address" — measured directly against this contract's own rate-limit error. A pure
+ * concurrency cap of 4 still bursts past that the moment each short read resolves and
+ * the next one fires immediately, so every dispatch is additionally paced to keep the
+ * whole batch comfortably under 20 calls per rolling 10s window even as this contract
+ * accumulates more mandates and proposals over the life of the demo.
+ */
 async function mapWithConcurrency<T, R>(
   items: T[],
   limit: number,
   fn: (item: T) => Promise<R>,
+  minSpacingMs = 520,
 ): Promise<R[]> {
   const results: R[] = new Array(items.length);
   let cursor = 0;
+  let lastDispatch = 0;
+
   const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
     while (cursor < items.length) {
       const index = cursor++;
+      const wait = lastDispatch + minSpacingMs - Date.now();
+      if (wait > 0) await sleep(wait);
+      lastDispatch = Date.now();
       results[index] = await fn(items[index]);
     }
   });

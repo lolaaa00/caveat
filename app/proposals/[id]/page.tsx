@@ -138,7 +138,7 @@ export default function ProposalCheckpoint() {
           <div className="sot-l">
             <span className="sot-dot" />
             <span className="sot-txt">
-              Authoritative state &mdash; <strong>GenLayer Intelligent Contract</strong>. The
+              Authoritative state: <strong>GenLayer Intelligent Contract</strong>. The
               frontend renders contract state; it never computes the verdict.
             </span>
           </div>
