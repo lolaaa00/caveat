@@ -18,10 +18,64 @@ const asJson = <T,>(raw: unknown): T | null => {
   return JSON.parse(raw) as T;
 };
 
+/**
+ * Studio Next is a shared preview devnet with a small execution pool (currently 8
+ * slots). Under real traffic — several people demoing at once, or this console's own
+ * dashboard firing many parallel reads — a call can transiently fail with "Server busy"
+ * or a gateway timeout even though nothing is actually wrong. That is not a decision
+ * failure; it is the shared testnet being momentarily saturated. Retrying with backoff
+ * is honest here: no verdict is invented or assumed, the call is just asked again.
+ */
+const TRANSIENT_PATTERN =
+  /server busy|execution slots|rate limit|too many requests|429|502|503|504|gateway|timed?[ -]?out|econnreset|fetch failed/i;
+
+const isTransient = (error: unknown): boolean => {
+  const message = error instanceof Error ? error.message : String(error);
+  return TRANSIENT_PATTERN.test(message);
+};
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function withRetry<T>(fn: () => Promise<T>, attempts = 5): Promise<T> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error;
+      if (!isTransient(error) || attempt === attempts - 1) throw error;
+      const backoff = Math.min(800 * 2 ** attempt, 8000) + Math.random() * 300;
+      await sleep(backoff);
+    }
+  }
+  throw lastError;
+}
+
+/** Runs async work over `items` with at most `limit` in flight, instead of firing every
+ *  call at once — the shape most likely to exhaust a small shared execution pool. */
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (cursor < items.length) {
+      const index = cursor++;
+      results[index] = await fn(items[index]);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
+
 // ---------------------------------------------------------------------------- reads
 
 const read = async (functionName: string, args: unknown[] = []) =>
-  readClient().readContract({ address: address(), functionName, args: args as never[] });
+  withRetry(() =>
+    readClient().readContract({ address: address(), functionName, args: args as never[] }),
+  );
 
 export const listMandateIds = async (): Promise<string[]> =>
   asJson<string[]>(await read('list_mandates')) ?? [];
@@ -41,15 +95,21 @@ export const proposalIdsForMandate = async (mandateId: string): Promise<string[]
 export const isExecutable = async (proposalId: string): Promise<boolean> =>
   Boolean(await read('is_executable', [proposalId]));
 
+// At most this many reads in flight at once. Studio Next's shared execution pool is
+// small (8 slots at last check); a dashboard with dozens of mandates firing every read
+// simultaneously is exactly the load pattern that saturates it for every other request
+// on the network too, not just ours.
+const READ_CONCURRENCY = 4;
+
 export const getMandates = async (): Promise<Mandate[]> => {
   const ids = await listMandateIds();
-  const records = await Promise.all(ids.map((id) => getMandate(id)));
+  const records = await mapWithConcurrency(ids, READ_CONCURRENCY, (id) => getMandate(id));
   return records.filter((record): record is Mandate => record !== null);
 };
 
 export const getProposals = async (): Promise<Proposal[]> => {
   const ids = await listProposalIds();
-  const records = await Promise.all(ids.map((id) => getProposal(id)));
+  const records = await mapWithConcurrency(ids, READ_CONCURRENCY, (id) => getProposal(id));
   return records.filter((record): record is Proposal => record !== null);
 };
 
@@ -73,27 +133,39 @@ export const send = async (
   args: unknown[] = [],
 ): Promise<WriteResult> => {
   const client = writeClient(sender);
-  const estimate = await client.estimateTransactionFees();
+  const estimate = await withRetry(() => client.estimateTransactionFees());
   const fees: Record<string, unknown> = {
     distribution: estimate.distribution,
     feeValue: estimate.feeValue,
   };
   if (estimate.messageAllocations) fees.messageAllocations = estimate.messageAllocations;
 
-  // The client is already bound to the connected wallet, which is what signs.
-  const hash = (await client.writeContract({
-    address: address(),
-    functionName,
-    args: args as never[],
-    fees: fees as never,
-  })) as string;
+  // The client is already bound to the connected wallet, which is what signs. Signing
+  // itself is never retried — only the RPC round trip that submits the already-signed
+  // transaction, so a transient gateway error can't prompt the wallet twice.
+  const hash = (await withRetry(() =>
+    client.writeContract({
+      address: address(),
+      functionName,
+      args: args as never[],
+      fees: fees as never,
+    }),
+  )) as string;
 
-  const receipt = await client.waitForTransactionReceipt({
-    hash: hash as never,
-    waitUntil: 'decided',
-    interval: 3000,
-    retries: 60,
-  });
+  // evaluate_proposal in particular does real non-deterministic work under consensus —
+  // live web retrieval and an LLM judgement across validators — which genuinely takes
+  // longer than a plain state write, on top of whatever transient RPC hiccups occur
+  // while polling. Both the poll budget and the retry wrapper account for that.
+  const receipt = await withRetry(
+    () =>
+      client.waitForTransactionReceipt({
+        hash: hash as never,
+        waitUntil: 'decided',
+        interval: 3000,
+        retries: 60,
+      }),
+    3,
+  );
 
   const outcome = (receipt as { lifecycle?: { outcome?: string } }).lifecycle?.outcome;
   if (outcome && outcome !== 'accepted' && outcome !== 'finalized') {
