@@ -84,9 +84,11 @@ none of them; it reads state and submits signed transactions.
 | Repository | **[github.com/lolaaa00/caveat](https://github.com/lolaaa00/caveat)** |
 | Network | GenLayer Studio Next / Studio-dev |
 | Chain ID | **61997** |
-| Contract | [`0x0EF51C68BC0D1394b5F3880e593867ddDd0b7E31`](https://explorer-studio-dev.genlayer.com/address/0x0EF51C68BC0D1394b5F3880e593867ddDd0b7E31) |
-| Deployment tx | [`0x4b9b56fc…0045160`](https://explorer-studio-dev.genlayer.com/tx/0x4b9b56fc29947bcf551cc3d319fc49e682c608db8b1680760ff6849ff0045160) |
+| Contract | [`0x2274Ce90b9A91016c3935a5807e684c5B99Da5c7`](https://explorer-studio-dev.genlayer.com/address/0x2274Ce90b9A91016c3935a5807e684c5B99Da5c7) |
+| Deployment tx | [`0x2209a519…45be359`](https://explorer-studio-dev.genlayer.com/tx/0x2209a51915923425ebf4ec6d681655826e5a0d732967d2603380e842445be359) |
 | Consensus / execution | `MAJORITY_AGREE` / `SUCCESS` |
+| Source commit | `0f367da` (this repo, `main`) |
+| Runtime | py-genlayer runner, genvm-manager bundle v0.6.0-rc5 |
 | Evidence | `artifacts/deployment.studio_devnet.json`, `artifacts/e2e.studio_devnet.json` |
 
 Studio Next is a resettable preview network. If the deployment has been reset, redeploy
@@ -94,10 +96,10 @@ with `npm run deploy` — it takes about a minute and writes fresh evidence arti
 
 ### All three verdicts, proven live
 
-Every outcome below ran against the deployed contract on chain 61997 — real validators,
-real web retrieval against the publicly hosted [evidence page](https://caveat-xi.vercel.app/evidence/amsterdam-2026-schedule.html),
-real LLM judgement under consensus, real transactions. One mandate (`MND-0017`), three
-proposals, three verdicts. Full record in `artifacts/e2e.studio_devnet.json`.
+Every outcome below ran against the current deployed contract (`0x2274Ce90…`) on chain
+61997 — real validators, real web retrieval, real LLM judgement under consensus, real
+transactions. One mandate (`MND-0017`), three proposals, three verdicts.
+Full record in `artifacts/e2e.studio_devnet.json`.
 
 | Scenario | Proposal | Verdict | What happened on chain |
 | --- | --- | --- | --- |
@@ -145,22 +147,26 @@ npm run dev             # console on http://localhost:3000
 ## Testing
 
 ```bash
-npm run test:contract      # 60 in-process tests against the real SDK
-npm run test:integration   # 5 tests on chain 61997 (~4 min, real validators and fees)
+npm run test:contract      # 125 in-process tests against the real SDK
+npm run test:integration   # integration tests on chain 61997 (~4 min, real validators)
 python3 scripts/e2e.py     # full lifecycle on chain, writes artifacts/
 npm run typecheck          # frontend types
 npm run build              # production build
 ```
 
-| Suite | Covers |
-| --- | --- |
-| `test/direct/test_mandate.py` | Lifecycle, permissions, expiry, evidence-policy validation |
-| `test/direct/test_deterministic_checks.py` | Budget, destination, refundability, missing fields, wrong agent, stale mandate, re-evaluation |
-| `test/direct/test_semantic.py` | All three verdicts, `INCONCLUSIVE`, fail-closed, fallback capping, evidence digests |
-| `test/direct/test_execution_gate.py` | Gate, reconfirmation, rejection, replay, revocation, expiry |
-| `test/direct/test_security.py` | Prompt-injection fencing, truncation, agent-crafted evidence, policy mutation |
-| `test/direct/test_authorization_artifact.py` | The gate is the boundary: no payment surface on the contract, and the authorization artifact binds the decision |
-| `test/integration/test_studio_next.py` | The same behaviour on the real network |
+| Suite | Tests | Covers |
+| --- | --- | --- |
+| `test/direct/test_mandate.py` | 14 | Lifecycle, permissions, expiry, evidence-policy validation |
+| `test/direct/test_deterministic_checks.py` | 12 | Budget, destination, refundability, missing fields, wrong agent, stale mandate, re-evaluation |
+| `test/direct/test_semantic.py` | 11 | All three verdicts, `INCONCLUSIVE`, fail-closed, fallback capping, evidence digests |
+| `test/direct/test_execution_gate.py` | 18 | Gate, reconfirmation, rejection, replay, revocation, expiry, **gate-parity** (is_executable / get_proposal.executable / consume_approval must agree) |
+| `test/direct/test_stale_approval.py` | 7 | Stale-approval bypass prevention, all staleness paths |
+| `test/direct/test_security.py` | 9 | Prompt-injection fencing, truncation, agent-crafted evidence, policy mutation |
+| `test/direct/test_evidence_integrity.py` | 9 | Excerpt verification, content digests, consensus-failure fail-closed |
+| `test/direct/test_hostile_input.py` | 6 | Prompt injection in payload, action summary, and via evidence source |
+| `test/direct/test_input_bounds.py` | 28 | Field length caps, decimal precision, canonical digests, **URL safety** (private IPs, credentials, fragments, non-https), sources/questions consistency |
+| `test/direct/test_authorization_artifact.py` | 11 | Authorization artifact correctness and binding |
+| `test/integration/test_studio_next.py` | — | Same behaviour on chain 61997 |
 
 ## Environment variables
 
@@ -196,7 +202,7 @@ at zero LLM cost — see `test_budget_failure_blocks_without_a_model_call`.
 
 Evidence is bounded by policy the principal sets and the contract freezes on activation:
 
-- `approved_sources` — https only; an evidence question pointing anywhere else is rejected at creation.
+- `approved_sources` — absolute HTTPS only, public hosts only (private IPs, localhost, and credentials are rejected at creation); non-empty if and only if `evidence_questions` is also non-empty.
 - Each evidence record carries its **claim**, **source URL**, **retrieval class** (`LIVE` / `FALLBACK` / `UNAVAILABLE`), **retrieval time**, and contributes to an **evidence digest** bound into the receipt.
 - Page content is truncated and fenced as untrusted data. The judgement step never sees raw page content — only the extracted claim.
 - The proposing agent cannot supply, choose, or influence verdict-producing evidence.
@@ -211,6 +217,8 @@ Full analysis in [docs/threat-model.md](docs/threat-model.md). Headlines:
 - **Replay** → one-time approval, second attempt reverts on chain.
 - **Policy mutation** → proposals bind the policy commitment; a mismatch blocks.
 - **Source outage** → fail closed; unavailable evidence can never yield `EXECUTE`.
+- **Private-network fetch** → approved source URLs are validated at creation: only absolute HTTPS URLs with public hosts are accepted; private/loopback/reserved IPs, credentials, and fragments are rejected on-chain.
+- **Execution-gate divergence** → `is_executable()`, `get_proposal().executable`, and `consume_approval()` all derive their answer from a single shared predicate (`_executable_gate`), so they cannot disagree about mandate status, expiry, staleness, or consumed state.
 - **Money before verdict** → payment has nothing to reference until an approval is consumed; the contract itself never settles.
 
 ## Where CAVEAT stops
