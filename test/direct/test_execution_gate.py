@@ -3,6 +3,11 @@ The one-time execution gate and the reconfirmation flow.
 
 Only EXECUTE unlocks execution, the approval is consumable exactly once, and a
 paused action stays locked until the principal personally re-authorizes it.
+
+The central invariant: is_executable() and get_proposal().executable must agree with
+consume_approval(). When either read gate returns False, consume_approval() must raise;
+when it returns True, consume_approval() must succeed (assuming no concurrent write).
+This is enforced by the shared _executable_gate predicate.
 """
 
 from conftest import flight, mandate_of, proposal_of, warp
@@ -160,3 +165,132 @@ def test_end_to_end_reconfirm_then_execute(caveat, active_mandate, submit, mock_
     assert caveat.is_executable(drifted) is False
     with direct_vm.expect_revert('approval already consumed'):
         caveat.consume_approval(drifted)
+
+
+# ---- Gate-parity tests: is_executable / get_proposal.executable / consume_approval ----
+# These tests prove that the three surfaces agree. Before _executable_gate was
+# introduced, is_executable() and get_proposal().executable did not check mandate status
+# or expiry, so they could report True while consume_approval() raised.
+
+
+def test_is_executable_returns_false_for_revoked_mandate(
+    caveat, active_mandate, submit, mock_evidence, direct_vm, principal, agent
+):
+    """is_executable() must follow the mandate status, not only the proposal status."""
+    mandate_id, proposal_id = _execute_case(caveat, active_mandate, submit, mock_evidence)
+    assert caveat.is_executable(proposal_id) is True
+
+    direct_vm.sender = principal
+    caveat.revoke_mandate(mandate_id)
+
+    assert caveat.is_executable(proposal_id) is False, (
+        'is_executable must return False after revocation — before the shared predicate '
+        'it returned True here, diverging from consume_approval which correctly raised'
+    )
+
+
+def test_is_executable_returns_false_for_expired_mandate(
+    caveat, active_mandate, submit, mock_evidence, direct_vm, agent
+):
+    """is_executable() must follow the mandate expiry, not only the proposal status."""
+    _, proposal_id = _execute_case(caveat, active_mandate, submit, mock_evidence)
+    assert caveat.is_executable(proposal_id) is True
+
+    warp(direct_vm, '2026-11-02T00:00:00Z')
+
+    assert caveat.is_executable(proposal_id) is False, (
+        'is_executable must return False after expiry — before the shared predicate '
+        'it returned True here, diverging from consume_approval which correctly raised'
+    )
+
+
+def test_get_proposal_executable_returns_false_for_revoked_mandate(
+    caveat, active_mandate, submit, mock_evidence, direct_vm, principal
+):
+    """get_proposal().executable must agree with is_executable() on revocation."""
+    mandate_id, proposal_id = _execute_case(caveat, active_mandate, submit, mock_evidence)
+    assert proposal_of(caveat, proposal_id)['executable'] is True
+
+    direct_vm.sender = principal
+    caveat.revoke_mandate(mandate_id)
+
+    assert proposal_of(caveat, proposal_id)['executable'] is False
+
+
+def test_get_proposal_executable_returns_false_for_expired_mandate(
+    caveat, active_mandate, submit, mock_evidence, direct_vm
+):
+    """get_proposal().executable must agree with is_executable() on expiry."""
+    _, proposal_id = _execute_case(caveat, active_mandate, submit, mock_evidence)
+    assert proposal_of(caveat, proposal_id)['executable'] is True
+
+    warp(direct_vm, '2026-11-02T00:00:00Z')
+
+    assert proposal_of(caveat, proposal_id)['executable'] is False
+
+
+def test_gate_surfaces_all_agree_after_revocation(
+    caveat, active_mandate, submit, mock_evidence, direct_vm, principal, agent
+):
+    """
+    All three surfaces (is_executable, get_proposal.executable, consume_approval) must
+    give the same answer for the same state. After revocation:
+      - is_executable() -> False
+      - get_proposal().executable -> False
+      - consume_approval() -> raises 'mandate is not ACTIVE'
+    """
+    mandate_id, proposal_id = _execute_case(caveat, active_mandate, submit, mock_evidence)
+
+    direct_vm.sender = principal
+    caveat.revoke_mandate(mandate_id)
+
+    assert caveat.is_executable(proposal_id) is False
+    assert proposal_of(caveat, proposal_id)['executable'] is False
+    direct_vm.sender = agent
+    with direct_vm.expect_revert('mandate is not ACTIVE'):
+        caveat.consume_approval(proposal_id)
+
+
+def test_gate_surfaces_all_agree_after_expiry(
+    caveat, active_mandate, submit, mock_evidence, direct_vm, agent
+):
+    """All three surfaces agree after expiry."""
+    _, proposal_id = _execute_case(caveat, active_mandate, submit, mock_evidence)
+    warp(direct_vm, '2026-11-02T00:00:00Z')
+
+    assert caveat.is_executable(proposal_id) is False
+    assert proposal_of(caveat, proposal_id)['executable'] is False
+    direct_vm.sender = agent
+    with direct_vm.expect_revert('mandate has expired'):
+        caveat.consume_approval(proposal_id)
+
+
+def test_read_only_executable_result_cannot_authorize_without_consuming(
+    caveat, active_mandate, submit, mock_evidence, direct_vm, agent
+):
+    """
+    A downstream consumer that reads is_executable() == True and then acts without
+    calling consume_approval() receives no authorization artifact. This documents and
+    tests the contract's design: the readable state is a hint for display, not the
+    authorization itself. Only consume_approval() produces the artifact that a
+    settlement rail may bind to, and it's one-time.
+    """
+    _, proposal_id = _execute_case(caveat, active_mandate, submit, mock_evidence)
+    assert caveat.is_executable(proposal_id) is True
+
+    # A read-only check of executable state — this produces no artifact.
+    record = proposal_of(caveat, proposal_id)
+    assert record['executable'] is True
+    assert record['approval_consumed'] is False
+    # authorization_artifact is empty until consume_approval is called.
+    assert caveat.authorization_artifact(proposal_id) == '', (
+        'reading executable state does not produce an artifact; '
+        'consume_approval must be called to obtain authorization'
+    )
+
+    # Only after consuming does the artifact appear.
+    direct_vm.sender = agent
+    artifact = caveat.consume_approval(proposal_id)
+    assert artifact.startswith('0x')
+    assert caveat.authorization_artifact(proposal_id) == artifact
+    assert caveat.is_executable(proposal_id) is False

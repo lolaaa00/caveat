@@ -223,3 +223,78 @@ def test_evidence_digest_does_not_collide_when_a_field_contains_the_old_delimite
     caveat.evaluate_proposal(proposal_b)
 
     assert proposal_of(caveat, proposal_a)['evidence_digest'] != proposal_of(caveat, proposal_b)['evidence_digest']
+
+
+# ---- URL validation tests -----------------------------------------------------------
+
+def _make_mandate_with_sources(make_mandate, direct_vm, sources, questions=None):
+    """Helper: attempt to create a mandate with custom sources/questions."""
+    import json
+    if questions is None:
+        questions = [
+            {
+                'qid': 'q1',
+                'question': 'What is the opening time?',
+                'source_url': sources[0] if sources else '',
+                'answer_schema': 'HH:MM',
+                'fallback_claim': '',
+            }
+        ] if sources else []
+    return make_mandate(approved_sources=sources, evidence_questions=questions)
+
+
+@pytest.mark.parametrize('bad_url', [
+    'http://example.com/schedule',             # not https
+    'ftp://example.com/schedule',              # wrong scheme
+    'data:text/plain,hello',                   # data URI
+    '/relative/path',                          # relative path
+    'example.com/no-scheme',                   # no scheme
+    'https://user:pass@example.com/path',      # credentials in URL
+    'https://localhost/schedule',              # loopback
+    'https://127.0.0.1/schedule',             # loopback IP
+    'https://10.0.0.1/schedule',              # private range
+    'https://192.168.1.1/schedule',           # private range
+    'https://172.16.0.1/schedule',            # private range (172.16–31)
+    'https://0.0.0.0/schedule',               # reserved
+    'https://[::1]/schedule',                 # IPv6 loopback
+    'https://example.com/page#section',       # fragment
+])
+def test_unsafe_source_url_is_rejected(make_mandate, direct_vm, bad_url):
+    """create_mandate must reject URLs that are not safe absolute HTTPS destinations."""
+    with pytest.raises(Exception, match='approved source'):
+        _make_mandate_with_sources(make_mandate, direct_vm, [bad_url])
+
+
+def test_valid_https_url_is_accepted(make_mandate, direct_vm):
+    """A well-formed public HTTPS URL is accepted."""
+    _make_mandate_with_sources(
+        make_mandate, direct_vm, [CONFERENCE_URL]
+    )
+
+
+def test_sources_and_questions_must_be_consistent(make_mandate, direct_vm):
+    """Sources with no questions (or questions with no sources) is incoherent."""
+    with pytest.raises(Exception, match='non-empty but evidence_questions is empty'):
+        make_mandate(
+            approved_sources=[CONFERENCE_URL],
+            evidence_questions=[],
+        )
+    # questions with no sources: the source_url validation fires first since the
+    # question's source_url is not in the empty sources list
+    with pytest.raises(Exception, match='evidence source_url must be an approved source|non-empty but approved_sources is empty'):
+        make_mandate(
+            approved_sources=[],
+            evidence_questions=[EVIDENCE_QUESTIONS[0]],
+        )
+
+
+def test_pure_constraint_mandate_with_no_sources_or_questions_is_valid(make_mandate, direct_vm):
+    """
+    A mandate with no approved sources and no evidence questions is a legitimate
+    'pure constraint + semantic' mode. The model receives an empty evidence list and
+    evaluates purely against the mandate text and proposed action. This is documented
+    behavior, not an accidental bypass: a principal who creates such a mandate is
+    explicitly saying 'no live evidence needed, only the hard constraints and the
+    semantic conditions I've stated matter.'
+    """
+    _make_mandate_with_sources(make_mandate, direct_vm, sources=[], questions=[])
