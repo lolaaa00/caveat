@@ -210,9 +210,34 @@ const leaderReturn = (receipt: unknown): unknown => {
   const first = Array.isArray(leader) ? leader[0] : leader;
   if (first && typeof first === 'object') {
     const record = first as Record<string, unknown>;
-    return record.result ?? record.returned ?? record.return_value ?? null;
+    const raw = record.result ?? record.returned ?? record.return_value ?? null;
+    return unwrapGenVMReturn(raw);
   }
   return null;
+};
+
+/**
+ * GenVM's leader receipt doesn't hand back a plain value for a write's return: it's
+ * `{status, payload: {raw, readable}}`, where `readable` is a JSON-encoded rendering of
+ * the actual return (e.g. `"0x…"` — a quoted string — for a str return). Without this,
+ * a caller checking `typeof returned === 'string'` never matches, silently discarding a
+ * real return value like the authorization artifact from consume_approval.
+ */
+const unwrapGenVMReturn = (value: unknown): unknown => {
+  if (value && typeof value === 'object' && 'payload' in (value as Record<string, unknown>)) {
+    const payload = (value as Record<string, unknown>).payload;
+    if (payload && typeof payload === 'object') {
+      const readable = (payload as Record<string, unknown>).readable;
+      if (typeof readable === 'string') {
+        try {
+          return JSON.parse(readable);
+        } catch {
+          return readable;
+        }
+      }
+    }
+  }
+  return value;
 };
 
 // ------------------------------------------------------------------ contract actions
