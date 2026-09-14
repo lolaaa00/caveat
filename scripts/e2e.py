@@ -89,11 +89,13 @@ class Session:
             account=account,
             fees=fees,
         )
-        receipt = require_success(client, tx_hash, label)
+        # Record the transaction as soon as it has a hash, before checking whether it
+        # succeeded — a reverted transaction is still real on-chain evidence and its
+        # explorer link is worth keeping even when require_success raises below.
         self.transactions.append(
             {'label': label, 'tx': _hex(tx_hash), 'explorer': explorer_tx(tx_hash)}
         )
-        return receipt
+        return require_success(client, tx_hash, label)
 
     def read(self, function_name: str, args: list):
         return self.principal_client.read_contract(
