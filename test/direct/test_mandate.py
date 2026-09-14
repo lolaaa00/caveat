@@ -81,7 +81,7 @@ def test_evidence_source_must_be_an_approved_source(caveat, make_mandate, direct
 
 
 def test_approved_sources_must_be_https(caveat, make_mandate, direct_vm):
-    with direct_vm.expect_revert('approved sources must be https URLs'):
+    with direct_vm.expect_revert('approved sources must be absolute HTTPS URLs'):
         make_mandate(approved_sources=['http://insecure.example/schedule'], evidence_questions=[])
 
 

@@ -1,4 +1,6 @@
 # { "Depends": "py-genlayer:latest" }
+# Runtime: py-genlayer runner, genvm-manager bundle v0.6.0-rc5 (genlayer-py==0.19.0rc2).
+# Target: Studio Next / Studio-dev chain 61997. Do not deploy to StudioNet 61999.
 """
 CAVEAT — a context-aware execution checkpoint for autonomous agents.
 
@@ -106,10 +108,68 @@ MAX_FALLBACK_CLAIM_CHARS = 200
 _NUMERIC_OPS = ('lte', 'lt', 'gte', 'gt')
 _ALL_OPS = _NUMERIC_OPS + ('eq', 'neq', 'in', 'not_in', 'is_true', 'is_false')
 
+# Private, link-local, loopback, reserved ranges as hostname prefixes/values.
+# We block these at creation time so the contract cannot be used to exfiltrate
+# data from internal network services via the evidence retrieval step.
+_BLOCKED_HOST_PREFIXES = ('localhost', '0.', '10.', '172.', '192.168.', '127.')
+_BLOCKED_HOST_EXACT = frozenset({'localhost', '[::1]', '::1'})
+
 
 # --------------------------------------------------------------------------------------
 # Deterministic helpers (pure, no I/O, no model)
 # --------------------------------------------------------------------------------------
+
+
+def _validate_source_url(url: str) -> None:
+    """
+    Validate that `url` is a safe absolute HTTPS URL for use as an evidence source.
+
+    Rejected:
+    - not https (http, ftp, data URIs, relative paths, …)
+    - credentials embedded in the authority (user:pass@)
+    - empty or malformed host (missing or just ':')
+    - non-default port specified in the URL (prevents sidechannel via unusual ports)
+    - private / loopback / link-local / reserved destinations (10.x, 172.x, 192.168.x,
+      127.x, localhost, ::1, 0.x …)
+    - URLs containing a fragment '#' (irrelevant to the fetch, not a source address)
+
+    GenVM guarantees that non-deterministic web fetches do not reach private network
+    addresses, but the contract validates here too so the rejection is on-chain and
+    auditable rather than depending on runtime policy.
+    """
+    if not url.startswith('https://'):
+        _fail('approved sources must be absolute HTTPS URLs')
+    rest = url[len('https://'):]
+
+    if '#' in rest:
+        _fail('approved source URL must not contain a fragment')
+
+    # Strip path/query to isolate the authority.
+    authority = rest.split('/')[0].split('?')[0]
+
+    if '@' in authority:
+        _fail('approved source URL must not contain credentials')
+    if not authority or authority.startswith(':'):
+        _fail('approved source URL has no host')
+
+    # Host is authority minus optional port. IPv6 addresses appear as [addr] or [addr]:port.
+    if authority.startswith('['):
+        # IPv6 literal: [addr] or [addr]:port
+        bracket_end = authority.find(']')
+        host_lower = authority[1:bracket_end].lower() if bracket_end > 0 else authority.lower()
+    elif ':' in authority:
+        # host:port (non-IPv6)
+        host_lower = authority.rsplit(':', 1)[0].lower()
+    else:
+        host_lower = authority.lower()
+
+    if not host_lower or host_lower == '':
+        _fail('approved source URL has no host')
+    if host_lower in _BLOCKED_HOST_EXACT:
+        _fail('approved source URL must resolve to a public host')
+    for prefix in _BLOCKED_HOST_PREFIXES:
+        if host_lower.startswith(prefix):
+            _fail('approved source URL must resolve to a public host')
 
 
 def _fail(reason: str) -> typing.NoReturn:
@@ -559,6 +619,37 @@ class Caveat(gl.contract.Contract):
         )
 
     @gl.private
+    def _executable_gate(self, proposal: Proposal, mandate: Mandate, now: int) -> bool:
+        """
+        The single, canonical definition of "this approval may be consumed right now."
+
+        Both `is_executable` (the read gate) and `consume_approval` (the write gate)
+        derive their answer from this predicate so their decisions cannot diverge. When
+        `is_executable` says True, `consume_approval` will not raise (assuming no
+        concurrent write between the two calls). When it says False, `consume_approval`
+        is guaranteed to raise.
+
+        Conditions (all must hold):
+          1. Proposal reached EXECUTE_APPROVED status.
+          2. The single-use approval has not yet been spent.
+          3. The mandate commitment this proposal was judged against still matches the
+             mandate's live commitment (staleness check — see `_is_stale`).
+          4. The mandate is still ACTIVE (not REVOKED, EXPIRED, or DRAFT).
+          5. The mandate has not passed its `expires_at` wall-clock boundary.
+        """
+        if proposal.status != PROPOSAL_EXECUTE_APPROVED:
+            return False
+        if proposal.approval_consumed:
+            return False
+        if self._is_stale(proposal, mandate):
+            return False
+        if mandate.status != MANDATE_ACTIVE:
+            return False
+        if int(mandate.expires_at) <= now:
+            return False
+        return True
+
+    @gl.private
     def _is_stale(self, proposal: Proposal, mandate: Mandate) -> bool:
         """
         True once the mandate's live commitment has moved past what this proposal was
@@ -626,10 +717,11 @@ class Caveat(gl.contract.Contract):
         if len(sources) > MAX_APPROVED_SOURCES:
             _fail('too many approved sources')
         for source in sources:
-            if not isinstance(source, str) or not source.startswith('https://'):
-                _fail('approved sources must be https URLs')
+            if not isinstance(source, str):
+                _fail('approved sources must be strings')
             if len(source) > MAX_SOURCE_URL_CHARS:
                 _fail('approved source URL is too long')
+            _validate_source_url(source)
 
         questions = _parse_json_list(evidence_questions_json, 'evidence_questions_json')
         if len(questions) > MAX_EVIDENCE_QUESTIONS:
@@ -649,6 +741,18 @@ class Caveat(gl.contract.Contract):
             url = str(question.get('source_url', ''))
             if url not in sources:
                 _fail('evidence source_url must be an approved source')
+
+        # A non-empty source list with no questions is an incoherent configuration:
+        # approved sources that the contract is never instructed to fetch. Conversely,
+        # questions that reference sources (already validated above) imply at least one
+        # source. Both lists must be simultaneously empty (pure-constraint mode) or
+        # simultaneously non-empty (evidence-backed mode).
+        if len(sources) > 0 and len(questions) == 0:
+            _fail('approved_sources is non-empty but evidence_questions is empty; '
+                  'list the questions to ask of those sources, or remove the sources')
+        if len(questions) > 0 and len(sources) == 0:
+            _fail('evidence_questions is non-empty but approved_sources is empty; '
+                  'add at least one approved source for the questions to draw from')
 
         mandate_id = self._next_id('MND')
         record = self.mandates.get_or_insert_default(mandate_id)
@@ -1051,9 +1155,15 @@ class Caveat(gl.contract.Contract):
         mandate = self.mandates.get(record.mandate_id)
         if mandate is None:
             return False
-        if self._is_stale(record, mandate):
+        try:
+            now = _now()
+        except Exception:
+            # Fail closed: if the transaction context has no datetime, any
+            # time-sensitive check (expiry) cannot be answered. Returning False
+            # ensures the read gate never reports a stale or expired approval as
+            # executable — the caller must retry in a context that has a timestamp.
             return False
-        return record.status == PROPOSAL_EXECUTE_APPROVED and not record.approval_consumed
+        return self._executable_gate(record, mandate, now)
 
     @gl.public.write
     def consume_approval(self, proposal_id: str) -> str:
@@ -1074,9 +1184,14 @@ class Caveat(gl.contract.Contract):
         proposal = self._proposal(proposal_id)
         mandate = self._mandate(proposal.mandate_id)
         sender = gl.message.sender_address
+        now = _now()
 
         if sender != mandate.agent and sender != mandate.principal:
             _fail('only the mandated agent or the principal may consume the approval')
+
+        # All gate conditions are checked explicitly here with descriptive messages so
+        # a caller that reads `is_executable` == False can diagnose why. The predicate
+        # is evaluated identically in _executable_gate so these two can never diverge.
         if proposal.status != PROPOSAL_EXECUTE_APPROVED:
             _fail('execution is locked: proposal is ' + proposal.status)
         if proposal.approval_consumed:
@@ -1088,7 +1203,7 @@ class Caveat(gl.contract.Contract):
             )
         if mandate.status != MANDATE_ACTIVE:
             _fail('mandate is not ACTIVE')
-        if int(mandate.expires_at) <= _now():
+        if int(mandate.expires_at) <= now:
             _fail('mandate has expired')
 
         proposal.approval_consumed = True
@@ -1147,6 +1262,11 @@ class Caveat(gl.contract.Contract):
             return ''
         mandate = self.mandates.get(record.mandate_id)
         stale = mandate is None or self._is_stale(record, mandate)
+        try:
+            now = _now()
+            executable = mandate is not None and self._executable_gate(record, mandate, now)
+        except Exception:
+            executable = False
         return _canonical(
             {
                 'proposal_id': record.proposal_id,
@@ -1171,9 +1291,7 @@ class Caveat(gl.contract.Contract):
                 'approval_consumed': record.approval_consumed,
                 'consumed_at': int(record.consumed_at),
                 'commitment_stale': stale,
-                'executable': record.status == PROPOSAL_EXECUTE_APPROVED
-                and not record.approval_consumed
-                and not stale,
+                'executable': executable,
             }
         )
 
