@@ -64,16 +64,17 @@ const FaucetButton = ({ address }: { address: string }) => {
     try {
       await fundFromFaucet(address);
       setState('done');
-    } catch {
+    } catch (err) {
+      console.error('Faucet error:', err);
       setState('error');
     }
   };
 
   if (state === 'done') {
     return (
-      <span className="chip-wallet ok" style={{ cursor: 'default' }}>
+      <span className="chip-wallet ok" style={{ cursor: 'default' }} title="10 GEN added to your wallet on chain 61997 (Studio Next)">
         <span className="wc-dot" />
-        Funded
+        +10 GEN funded
       </span>
     );
   }

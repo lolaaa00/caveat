@@ -14,7 +14,7 @@ import { RPC_URL } from '@/lib/config';
  * networks in the first place — there is nothing to abuse here beyond what the network
  * already gives away for free.
  */
-const FUND_AMOUNT_WEI = '1000000000000000000000'; // 1000 GEN, plenty for a full demo run
+const FUND_AMOUNT_WEI = '10000000000000000000'; // 10 GEN — Studio Next faucet cap
 
 export const fundFromFaucet = async (address: string): Promise<void> => {
   const response = await fetch(RPC_URL, {
