@@ -15,8 +15,10 @@ export default function Dashboard() {
     proposals: await getProposals(),
   }));
 
-  const mandates = data?.mandates ?? [];
-  const proposals = data?.proposals ?? [];
+  const mandates = data?.mandates.records ?? [];
+  const proposals = data?.proposals.records ?? [];
+  const mandatesTruncated = data ? data.mandates.total > mandates.length : false;
+  const proposalsTruncated = data ? data.proposals.total > proposals.length : false;
 
   const active = mandates.filter((m) => m.status === 'ACTIVE');
   const pending = proposals.filter((p) => p.status === 'PROPOSED');
@@ -67,11 +69,32 @@ export default function Dashboard() {
             marginBottom: '2rem',
           }}
         >
-          <Metric label="Active Mandates" value={active.length} />
-          <Metric label="Awaiting Checkpoint" value={pending.length} />
+          <Metric
+            label={mandatesTruncated ? `Active Mandates (recent ${mandates.length})` : 'Active Mandates'}
+            value={active.length}
+          />
+          <Metric
+            label={proposalsTruncated ? `Awaiting Checkpoint (recent ${proposals.length})` : 'Awaiting Checkpoint'}
+            value={pending.length}
+          />
           <Metric label="Reconfirmation Required" value={awaiting.length} tone="amber" />
           <Metric label="Execution Authorized" value={authorized.length} tone="lime" />
         </Reveal>
+        {mandatesTruncated || proposalsTruncated ? (
+          <p
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: '0.68rem',
+              color: 'var(--color-muted)',
+              marginTop: '-1.25rem',
+              marginBottom: '1.5rem',
+            }}
+          >
+            Showing the most recent {mandates.length} of {data?.mandates.total} mandates and{' '}
+            {proposals.length} of {data?.proposals.total} proposals — counts above reflect this
+            recent window, not full history, to stay under Studio Next&rsquo;s shared rate limit.
+          </p>
+        ) : null}
 
         <div className="grid-2" style={{ marginBottom: awaiting.length > 0 ? '1.25rem' : 0 }}>
           <Reveal>
