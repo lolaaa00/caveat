@@ -1,5 +1,9 @@
-# { "Depends": "py-genlayer:latest" }
+# { "Depends": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng" }
 # Runtime: py-genlayer runner, genvm-manager bundle v0.6.0-rc5 (genlayer-py==0.19.0rc2).
+# Pin resolved via genvm_linter.validate.artifacts.find_latest_runner() against the cached
+# v0.6.0-rc5 bundle and confirmed identical (same schema, same lint/typecheck result) to
+# what "latest" was already resolving to — this is a reproducibility pin, not a behavior
+# change. Re-resolve the same way if the toolchain's GenVM Manager version moves.
 # Target: Studio Next / Studio-dev chain 61997. Do not deploy to StudioNet 61999.
 """
 CAVEAT — a context-aware execution checkpoint for autonomous agents.
@@ -1189,21 +1193,22 @@ class Caveat(gl.contract.Contract):
         if sender != mandate.agent and sender != mandate.principal:
             _fail('only the mandated agent or the principal may consume the approval')
 
-        # All gate conditions are checked explicitly here with descriptive messages so
-        # a caller that reads `is_executable` == False can diagnose why. The predicate
-        # is evaluated identically in _executable_gate so these two can never diverge.
-        if proposal.status != PROPOSAL_EXECUTE_APPROVED:
-            _fail('execution is locked: proposal is ' + proposal.status)
-        if proposal.approval_consumed:
-            _fail('approval already consumed')
-        if self._is_stale(proposal, mandate):
-            _fail(
-                'mandate policy has changed since this proposal was approved '
-                '(a different proposal was reconfirmed since); this approval is stale'
-            )
-        if mandate.status != MANDATE_ACTIVE:
-            _fail('mandate is not ACTIVE')
-        if int(mandate.expires_at) <= now:
+        # The boolean gate itself is delegated to _executable_gate — the same predicate
+        # is_executable and get_proposal.executable use — so this cannot architecturally
+        # diverge from them. The individual checks below only run to build a descriptive
+        # message for *why* the gate is closed; they are not themselves the gate.
+        if not self._executable_gate(proposal, mandate, now):
+            if proposal.status != PROPOSAL_EXECUTE_APPROVED:
+                _fail('execution is locked: proposal is ' + proposal.status)
+            if proposal.approval_consumed:
+                _fail('approval already consumed')
+            if self._is_stale(proposal, mandate):
+                _fail(
+                    'mandate policy has changed since this proposal was approved '
+                    '(a different proposal was reconfirmed since); this approval is stale'
+                )
+            if mandate.status != MANDATE_ACTIVE:
+                _fail('mandate is not ACTIVE')
             _fail('mandate has expired')
 
         proposal.approval_consumed = True

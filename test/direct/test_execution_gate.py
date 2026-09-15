@@ -10,7 +10,9 @@ when it returns True, consume_approval() must succeed (assuming no concurrent wr
 This is enforced by the shared _executable_gate predicate.
 """
 
-from conftest import flight, mandate_of, proposal_of, warp
+import ast
+
+from conftest import CONTRACT_PATH, flight, mandate_of, proposal_of, warp
 
 
 def _reconfirm_case(caveat, active_mandate, submit, mock_evidence):
@@ -294,3 +296,46 @@ def test_read_only_executable_result_cannot_authorize_without_consuming(
     assert artifact.startswith('0x')
     assert caveat.authorization_artifact(proposal_id) == artifact
     assert caveat.is_executable(proposal_id) is False
+
+
+def test_consume_approval_literally_calls_the_shared_gate_predicate():
+    """
+    The behavioral gate-parity tests above prove is_executable(), get_proposal().executable
+    and consume_approval() currently *agree*. Agreement alone doesn't prove they can't
+    diverge again — two independently written checks can agree today and drift apart on a
+    future edit to only one of them, which is exactly the bug this contract once had
+    (is_executable() didn't check mandate status/expiry while consume_approval() did).
+
+    This test inspects the actual source of consume_approval() and asserts its body
+    contains a call to `self._executable_gate(...)` — the same method is_executable() and
+    get_proposal() call. It is a static, environment-independent way to enforce literal
+    sharing of one predicate, rather than relying on runtime monkeypatching inside GenVM's
+    sandboxed direct-execution VM (whose patchability isn't guaranteed).
+    """
+    tree = ast.parse(CONTRACT_PATH.read_text())
+    class_def = next(
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.ClassDef) and node.name == 'Caveat'
+    )
+    consume_approval = next(
+        node for node in class_def.body
+        if isinstance(node, ast.FunctionDef) and node.name == 'consume_approval'
+    )
+
+    def calls_executable_gate(node) -> bool:
+        for call in ast.walk(node):
+            if (
+                isinstance(call, ast.Call)
+                and isinstance(call.func, ast.Attribute)
+                and call.func.attr == '_executable_gate'
+                and isinstance(call.func.value, ast.Name)
+                and call.func.value.id == 'self'
+            ):
+                return True
+        return False
+
+    assert calls_executable_gate(consume_approval), (
+        'consume_approval() must call self._executable_gate(...) directly — reimplementing '
+        'the same conditions inline (even if currently equivalent) is exactly the pattern '
+        'that let is_executable() and consume_approval() silently diverge before'
+    )

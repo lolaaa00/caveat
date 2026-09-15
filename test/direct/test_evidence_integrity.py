@@ -212,6 +212,39 @@ def test_consensus_machinery_failure_fails_closed_never_fabricates_a_claim(
     assert record['executable'] is False
 
 
+def test_a_claim_that_does_not_conform_to_its_answer_schema_is_still_accepted(
+    caveat, active_mandate, submit, direct_vm
+):
+    """
+    Documents a real, accepted limitation (see docs/threat-model.md, 'Excerpt/answer_schema
+    conformance is not contract-enforced'): `_extract_claim`'s only objective check is that
+    the excerpt genuinely appears (normalized) in the fetched content. It never validates
+    the claim's *shape* against the evidence question's declared answer_schema. Here the
+    question asks for 'HH:MM in 24-hour local time, or NOT_FOUND', but the mocked model
+    returns a claim that is not a time at all — and because its excerpt is genuinely
+    verbatim in the page, it is still accepted as LIVE, supported evidence. Mitigated by
+    consensus over the shared content_digest (both validators must agree byte-for-byte on
+    what was fetched), not by schema validation, which does not exist in this contract.
+    """
+    proposal_id = _evaluate(
+        caveat,
+        submit,
+        direct_vm,
+        active_mandate(),
+        schedule_page('08:00'),
+        extraction_with_excerpt(
+            'sometime in the morning, roughly', 'Opening session and keynote (Main Hall)'
+        ),
+    )
+    item = proposal_of(caveat, proposal_id)['evidence'][0]
+    assert item['retrieval_class'] == 'LIVE', (
+        'the claim does not match its own answer_schema (HH:MM) at all, yet is still '
+        'accepted because the only enforced check is excerpt presence, not claim shape'
+    )
+    assert item['supported'] is True
+    assert item['claim'] == 'sometime in the morning, roughly'
+
+
 def test_evidence_digest_binds_question_and_source_not_only_the_claim(
     caveat, active_mandate, submit, direct_vm
 ):
