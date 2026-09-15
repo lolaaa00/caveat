@@ -19,8 +19,8 @@ out/
 
 build/
 
-# Deployment and run evidence is committed on purpose: it is the proof that the
-# contract is live and the lifecycle really executed. It holds no secrets.
-artifacts/fee-profile.json
+# Deployment and run evidence (including artifacts/fee-profile.json) is committed on
+# purpose: it is the proof that the contract is live and the lifecycle really executed.
+# It holds no secrets.
 .DS_Store
 .env*

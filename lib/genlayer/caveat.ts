@@ -1,8 +1,33 @@
 'use client';
 
 import { CONTRACT_ADDRESS } from '@/lib/config';
-import type { Mandate, Proposal } from '@/lib/types';
+import type { Mandate, Proposal, TxFailureStage, TxPhase } from '@/lib/types';
 import { isSuccessful, readClient, writeClient } from './client';
+
+/** A phase reporter callback. Optional everywhere — omitting it changes nothing about
+ * what a call does, only whether its real progress is surfaced to the UI. */
+export type PhaseReporter = (phase: TxPhase) => void;
+
+class TxStageError extends Error {
+  failureStage: TxFailureStage;
+  constructor(message: string, failureStage: TxFailureStage, cause?: unknown) {
+    super(message);
+    this.failureStage = failureStage;
+    this.cause = cause;
+  }
+}
+
+/**
+ * EIP-1193 defines 4001 for a user-rejected request; wallets also commonly phrase it as
+ * text ("User rejected", "user denied ..."). Distinguishing this from a genuine RPC/
+ * submission failure is the difference between "you said no" and "something broke".
+ */
+const isUserRejection = (error: unknown): boolean => {
+  const code = (error as { code?: number })?.code;
+  if (code === 4001) return true;
+  const message = error instanceof Error ? error.message : String(error);
+  return /user rejected|user denied|rejected the request/i.test(message);
+};
 
 const address = () => {
   if (!CONTRACT_ADDRESS) {
@@ -152,14 +177,32 @@ export interface WriteResult {
  * Under Consensus v0.6 a fee quote is mandatory (a transaction without a
  * FeesDistribution is reverted) and a decided transaction can still carry a failed
  * GenVM execution, so both are checked before this resolves.
+ *
+ * `onPhase` reports real progress boundaries (see TxPhase) — it's optional and never
+ * changes behavior, only whether the UI can show more than "pending". Signing and
+ * submission are one call from this SDK's perspective (`writeContract` blocks until
+ * both happen), so 'awaiting-approval' and 'submitted' bound that one call rather than
+ * being separately observed mid-call.
  */
 export const send = async (
   sender: string,
   functionName: string,
   args: unknown[] = [],
+  onPhase?: PhaseReporter,
 ): Promise<WriteResult> => {
   const client = writeClient(sender);
-  const estimate = await withRetry(() => client.estimateTransactionFees());
+
+  onPhase?.('estimating');
+  let estimate: Awaited<ReturnType<typeof client.estimateTransactionFees>>;
+  try {
+    estimate = await withRetry(() => client.estimateTransactionFees());
+  } catch (error) {
+    throw new TxStageError(
+      error instanceof Error ? error.message : 'Fee estimation failed.',
+      'estimating',
+      error,
+    );
+  }
   const fees: Record<string, unknown> = {
     distribution: estimate.distribution,
     feeValue: estimate.feeValue,
@@ -169,38 +212,66 @@ export const send = async (
   // The client is already bound to the connected wallet, which is what signs. Signing
   // itself is never retried — only the RPC round trip that submits the already-signed
   // transaction, so a transient gateway error can't prompt the wallet twice.
-  const hash = (await withRetry(() =>
-    client.writeContract({
-      address: address(),
-      functionName,
-      args: args as never[],
-      fees: fees as never,
-    }),
-  )) as string;
+  onPhase?.('awaiting-approval');
+  let hash: string;
+  try {
+    hash = (await withRetry(() =>
+      client.writeContract({
+        address: address(),
+        functionName,
+        args: args as never[],
+        fees: fees as never,
+      }),
+    )) as string;
+  } catch (error) {
+    throw new TxStageError(
+      error instanceof Error ? error.message : 'The wallet did not submit the transaction.',
+      isUserRejection(error) ? 'signing' : 'submitting',
+      error,
+    );
+  }
+  onPhase?.('submitted');
 
   // evaluate_proposal in particular does real non-deterministic work under consensus —
   // live web retrieval and an LLM judgement across validators — which genuinely takes
   // longer than a plain state write, on top of whatever transient RPC hiccups occur
   // while polling. Both the poll budget and the retry wrapper account for that.
-  const receipt = await withRetry(
-    () =>
-      client.waitForTransactionReceipt({
-        hash: hash as never,
-        waitUntil: 'decided',
-        interval: 3000,
-        retries: 60,
-      }),
-    3,
-  );
+  onPhase?.('pending-consensus');
+  let receipt: Awaited<ReturnType<typeof client.waitForTransactionReceipt>>;
+  try {
+    receipt = await withRetry(
+      () =>
+        client.waitForTransactionReceipt({
+          hash: hash as never,
+          waitUntil: 'decided',
+          interval: 3000,
+          retries: 60,
+        }),
+      3,
+    );
+  } catch (error) {
+    throw new TxStageError(
+      error instanceof Error ? error.message : 'Timed out waiting for a consensus decision.',
+      'timeout',
+      error,
+    );
+  }
 
   const outcome = (receipt as { lifecycle?: { outcome?: string } }).lifecycle?.outcome;
   if (outcome && outcome !== 'accepted' && outcome !== 'finalized') {
-    throw new Error(`${functionName} was not accepted by consensus (outcome: ${outcome}).`);
+    throw new TxStageError(
+      `${functionName} was not accepted by consensus (outcome: ${outcome}).`,
+      'consensus',
+    );
   }
   if (!isSuccessful(receipt)) {
-    throw new Error(`${functionName} reached consensus but its execution failed on chain.`);
+    throw new TxStageError(
+      `${functionName} reached consensus but its execution failed on chain.`,
+      'execution',
+    );
   }
 
+  onPhase?.('decided');
   return { hash, returned: leaderReturn(receipt) };
 };
 
@@ -255,41 +326,51 @@ export interface CreateMandateInput {
   expiresAt: number;
 }
 
-export const createMandate = (sender: string, input: CreateMandateInput) =>
-  send(sender, 'create_mandate', [
-    input.agent,
-    input.intentText,
-    input.purposeText,
-    input.actionType,
-    input.hardConstraintsJson,
-    input.semanticConditions,
-    input.approvedSourcesJson,
-    input.evidenceQuestionsJson,
-    input.reconfirmPolicy,
-    input.expiresAt,
-  ]);
+export const createMandate = (
+  sender: string,
+  input: CreateMandateInput,
+  onPhase?: PhaseReporter,
+) =>
+  send(
+    sender,
+    'create_mandate',
+    [
+      input.agent,
+      input.intentText,
+      input.purposeText,
+      input.actionType,
+      input.hardConstraintsJson,
+      input.semanticConditions,
+      input.approvedSourcesJson,
+      input.evidenceQuestionsJson,
+      input.reconfirmPolicy,
+      input.expiresAt,
+    ],
+    onPhase,
+  );
 
-export const activateMandate = (sender: string, mandateId: string) =>
-  send(sender, 'activate_mandate', [mandateId]);
+export const activateMandate = (sender: string, mandateId: string, onPhase?: PhaseReporter) =>
+  send(sender, 'activate_mandate', [mandateId], onPhase);
 
-export const revokeMandate = (sender: string, mandateId: string) =>
-  send(sender, 'revoke_mandate', [mandateId]);
+export const revokeMandate = (sender: string, mandateId: string, onPhase?: PhaseReporter) =>
+  send(sender, 'revoke_mandate', [mandateId], onPhase);
 
 export const submitProposal = (
   sender: string,
   mandateId: string,
   payloadJson: string,
   summary: string,
-) => send(sender, 'submit_proposal', [mandateId, payloadJson, summary]);
+  onPhase?: PhaseReporter,
+) => send(sender, 'submit_proposal', [mandateId, payloadJson, summary], onPhase);
 
-export const evaluateProposal = (sender: string, proposalId: string) =>
-  send(sender, 'evaluate_proposal', [proposalId]);
+export const evaluateProposal = (sender: string, proposalId: string, onPhase?: PhaseReporter) =>
+  send(sender, 'evaluate_proposal', [proposalId], onPhase);
 
-export const reconfirm = (sender: string, proposalId: string) =>
-  send(sender, 'reconfirm', [proposalId]);
+export const reconfirm = (sender: string, proposalId: string, onPhase?: PhaseReporter) =>
+  send(sender, 'reconfirm', [proposalId], onPhase);
 
-export const reject = (sender: string, proposalId: string) =>
-  send(sender, 'reject', [proposalId]);
+export const reject = (sender: string, proposalId: string, onPhase?: PhaseReporter) =>
+  send(sender, 'reject', [proposalId], onPhase);
 
-export const consumeApproval = (sender: string, proposalId: string) =>
-  send(sender, 'consume_approval', [proposalId]);
+export const consumeApproval = (sender: string, proposalId: string, onPhase?: PhaseReporter) =>
+  send(sender, 'consume_approval', [proposalId], onPhase);

@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "network": "studio_devnet",
+  "measuredAt": "2026-09-15T21:47:08Z",
+  "chainId": 61997,
+  "deploy": {
+    "leaderTimeunitsAllocation": "125",
+    "validatorTimeunitsAllocation": "250",
+    "executionBudgetPerRound": "0",
+    "totalMessageFees": "0",
+    "rotationsPerRound": "3"
+  },
+  "methods": {
+    "activate_mandate": {
+      "leaderTimeunitsAllocation": "125",
+      "validatorTimeunitsAllocation": "250",
+      "executionBudgetPerRound": "0",
+      "totalMessageFees": "0",
+      "rotationsPerRound": "3"
+    },
+    "consume_approval": {
+      "leaderTimeunitsAllocation": "125",
+      "validatorTimeunitsAllocation": "250",
+      "executionBudgetPerRound": "0",
+      "totalMessageFees": "0",
+      "rotationsPerRound": "3"
+    },
+    "create_mandate": {
+      "leaderTimeunitsAllocation": "125",
+      "validatorTimeunitsAllocation": "250",
+      "executionBudgetPerRound": "0",
+      "totalMessageFees": "0",
+      "rotationsPerRound": "3"
+    },
+    "evaluate_proposal": {
+      "leaderTimeunitsAllocation": "125",
+      "validatorTimeunitsAllocation": "250",
+      "executionBudgetPerRound": "0",
+      "totalMessageFees": "0",
+      "rotationsPerRound": "3"
+    },
+    "reconfirm": {
+      "leaderTimeunitsAllocation": "125",
+      "validatorTimeunitsAllocation": "250",
+      "executionBudgetPerRound": "0",
+      "totalMessageFees": "0",
+      "rotationsPerRound": "3"
+    },
+    "submit_proposal": {
+      "leaderTimeunitsAllocation": "125",
+      "validatorTimeunitsAllocation": "250",
+      "executionBudgetPerRound": "0",
+      "totalMessageFees": "0",
+      "rotationsPerRound": "3"
+    }
+  }
+}

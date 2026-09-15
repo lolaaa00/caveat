@@ -12,6 +12,7 @@ import {
   isEvidenceReachable,
   summarise,
 } from '@/lib/fixtures/scenarios';
+import { isBusy } from '@/lib/types';
 import type { Proposal } from '@/lib/types';
 import { useTx } from '@/lib/wallet/useTx';
 import { useWallet } from '@/lib/wallet/useWallet';
@@ -30,7 +31,7 @@ const VERDICT_TONE = { EXECUTE: 'lime', RECONFIRM: 'amber', BLOCK: 'crimson' } a
  */
 export default function DemoMode() {
   const wallet = useWallet();
-  const { state, run, reset } = useTx();
+  const { state, run, reset, reportPhase } = useTx();
   const [mandateId, setMandateId] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, Proposal>>({});
   const [source, setSource] = useState('');
@@ -50,23 +51,27 @@ export default function DemoMode() {
   const prepare = async () => {
     if (!address) return;
     const result = await run('Create and activate demo mandate', async () => {
-      const created = await caveat.createMandate(address, {
-        agent: address, // one wallet acts as both principal and agent for the demo
-        intentText: MANDATE_TEMPLATE.intentText,
-        purposeText: MANDATE_TEMPLATE.purposeText,
-        actionType: MANDATE_TEMPLATE.actionType,
-        hardConstraintsJson: JSON.stringify(MANDATE_TEMPLATE.hardConstraints),
-        semanticConditions: MANDATE_TEMPLATE.semanticConditions,
-        approvedSourcesJson: JSON.stringify([resolvedSource]),
-        evidenceQuestionsJson: JSON.stringify([
-          { ...MANDATE_TEMPLATE.evidenceQuestion, source_url: resolvedSource },
-        ]),
-        reconfirmPolicy: MANDATE_TEMPLATE.reconfirmPolicy,
-        expiresAt: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
-      });
+      const created = await caveat.createMandate(
+        address,
+        {
+          agent: address, // one wallet acts as both principal and agent for the demo
+          intentText: MANDATE_TEMPLATE.intentText,
+          purposeText: MANDATE_TEMPLATE.purposeText,
+          actionType: MANDATE_TEMPLATE.actionType,
+          hardConstraintsJson: JSON.stringify(MANDATE_TEMPLATE.hardConstraints),
+          semanticConditions: MANDATE_TEMPLATE.semanticConditions,
+          approvedSourcesJson: JSON.stringify([resolvedSource]),
+          evidenceQuestionsJson: JSON.stringify([
+            { ...MANDATE_TEMPLATE.evidenceQuestion, source_url: resolvedSource },
+          ]),
+          reconfirmPolicy: MANDATE_TEMPLATE.reconfirmPolicy,
+          expiresAt: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+        },
+        reportPhase,
+      );
       const ids = await caveat.listMandateIds();
       const id = typeof created.returned === 'string' ? created.returned : ids[ids.length - 1];
-      await caveat.activateMandate(address, id);
+      await caveat.activateMandate(address, id, reportPhase);
       return { ...created, id };
     });
     if (result?.id) setMandateId(result.id);
@@ -81,10 +86,11 @@ export default function DemoMode() {
         mandateId,
         JSON.stringify(scenario.payload),
         summarise(scenario.payload),
+        reportPhase,
       );
       const ids = await caveat.proposalIdsForMandate(mandateId);
       const proposalId = typeof submitted.returned === 'string' ? submitted.returned : ids[ids.length - 1];
-      await caveat.evaluateProposal(address, proposalId);
+      await caveat.evaluateProposal(address, proposalId, reportPhase);
       const decided = await caveat.getProposal(proposalId);
       if (decided) setResults((current) => ({ ...current, [key]: decided }));
       return submitted;
@@ -143,7 +149,7 @@ export default function DemoMode() {
             &#8220;{MANDATE_TEMPLATE.intentText}&#8221;
           </p>
           <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.875rem', flexWrap: 'wrap' }}>
-            <Button tone="crimson" disabled={!connected || state.phase === 'pending'} onClick={() => void prepare()}>
+            <Button tone="crimson" disabled={!connected || isBusy(state.phase)} onClick={() => void prepare()}>
               {mandateId ? 'Create Another Demo Mandate' : 'Create And Activate Mandate'}
             </Button>
             {mandateId ? (
@@ -177,7 +183,7 @@ export default function DemoMode() {
                 </div>
 
                 <div style={{ marginTop: '0.875rem' }}>
-                  <Button disabled={!connected || !mandateId || state.phase === 'pending'} onClick={() => void runScenario(scenario.key)}>
+                  <Button disabled={!connected || !mandateId || isBusy(state.phase)} onClick={() => void runScenario(scenario.key)}>
                     Run Checkpoint
                   </Button>
                 </div>
@@ -231,7 +237,7 @@ const TryToBreakIt = ({
   mandateId: string | null;
   connected: boolean;
 }) => {
-  const { state, run, reset } = useTx();
+  const { state, run, reset, reportPhase } = useTx();
   const [arrival, setArrival] = useState('09:15');
   const [price, setPrice] = useState('880');
   const [refundable, setRefundable] = useState(true);
@@ -247,10 +253,16 @@ const TryToBreakIt = ({
     if (!address || !mandateId) return;
     setResult(null);
     await run('Custom proposal · checkpoint', async () => {
-      const submitted = await caveat.submitProposal(address, mandateId, JSON.stringify(payload), summarise(payload));
+      const submitted = await caveat.submitProposal(
+        address,
+        mandateId,
+        JSON.stringify(payload),
+        summarise(payload),
+        reportPhase,
+      );
       const ids = await caveat.proposalIdsForMandate(mandateId);
       const proposalId = typeof submitted.returned === 'string' ? submitted.returned : ids[ids.length - 1];
-      await caveat.evaluateProposal(address, proposalId);
+      await caveat.evaluateProposal(address, proposalId, reportPhase);
       const decided = await caveat.getProposal(proposalId);
       setResult(decided);
       return submitted;
@@ -293,7 +305,7 @@ const TryToBreakIt = ({
       <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.875rem', flexWrap: 'wrap' }}>
         <Button
           tone="crimson"
-          disabled={!connected || !mandateId || state.phase === 'pending'}
+          disabled={!connected || !mandateId || isBusy(state.phase)}
           onClick={() => void tryIt()}
         >
           Submit And Judge

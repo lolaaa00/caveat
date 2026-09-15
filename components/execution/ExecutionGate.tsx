@@ -6,6 +6,7 @@ import * as caveat from '@/lib/genlayer/caveat';
 import { payOnSepolia, returnToChain } from '@/lib/settlement/pay';
 import { getAuthorization, getSettlement, putAuthorization, putSettlement } from '@/lib/settlement/store';
 import { verifySettlement } from '@/lib/settlement/verify';
+import { isBusy } from '@/lib/types';
 import type { Mandate, Proposal, Settlement } from '@/lib/types';
 import { useTx } from '@/lib/wallet/useTx';
 import type { useWallet } from '@/lib/wallet/useWallet';
@@ -23,7 +24,7 @@ interface Props {
 const same = (a: string | null, b: string) => Boolean(a) && a!.toLowerCase() === b.toLowerCase();
 
 export const ExecutionGate = ({ proposal, mandate, wallet, onChanged }: Props) => {
-  const { state, run, reset } = useTx();
+  const { state, run, reset, reportPhase } = useTx();
   const address = wallet.address;
   const isPrincipal = same(address, mandate.principal);
   const isAgent = same(address, mandate.agent);
@@ -77,9 +78,11 @@ export const ExecutionGate = ({ proposal, mandate, wallet, onChanged }: Props) =
             </p>
             <Button
               tone="crimson"
-              disabled={state.phase === 'pending'}
+              disabled={isBusy(state.phase)}
               onClick={() =>
-                void act('Run checkpoint', () => caveat.evaluateProposal(address!, proposal.proposal_id))
+                void act('Run checkpoint', () =>
+                  caveat.evaluateProposal(address!, proposal.proposal_id, reportPhase),
+                )
               }
             >
               Run CAVEAT checkpoint
@@ -97,15 +100,19 @@ export const ExecutionGate = ({ proposal, mandate, wallet, onChanged }: Props) =
               <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
                 <Button
                   tone="lime"
-                  disabled={state.phase === 'pending'}
-                  onClick={() => void act('Reconfirm', () => caveat.reconfirm(address!, proposal.proposal_id))}
+                  disabled={isBusy(state.phase)}
+                  onClick={() =>
+                    void act('Reconfirm', () => caveat.reconfirm(address!, proposal.proposal_id, reportPhase))
+                  }
                 >
                   Reconfirm this action
                 </Button>
                 <Button
                   tone="crimson"
-                  disabled={state.phase === 'pending'}
-                  onClick={() => void act('Reject', () => caveat.reject(address!, proposal.proposal_id))}
+                  disabled={isBusy(state.phase)}
+                  onClick={() =>
+                    void act('Reject', () => caveat.reject(address!, proposal.proposal_id, reportPhase))
+                  }
                 >
                   Reject
                 </Button>
@@ -129,10 +136,10 @@ export const ExecutionGate = ({ proposal, mandate, wallet, onChanged }: Props) =
             {isAgent || isPrincipal ? (
               <Button
                 tone="lime"
-                disabled={state.phase === 'pending'}
+                disabled={isBusy(state.phase)}
                 onClick={() =>
                   void act('Consume approval', async () => {
-                    const result = await caveat.consumeApproval(address!, proposal.proposal_id);
+                    const result = await caveat.consumeApproval(address!, proposal.proposal_id, reportPhase);
                     if (typeof result.returned === 'string' && result.returned.startsWith('0x')) {
                       putAuthorization(proposal.proposal_id, result.returned);
                     }
@@ -350,7 +357,7 @@ const SettlementSection = ({
         <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <Button
             tone="crimson"
-            disabled={!connected || !allowed || state.phase === 'pending' || !payee || !amount}
+            disabled={!connected || !allowed || isBusy(state.phase) || !payee || !amount}
             onClick={() =>
               void run('Pay and verify', async () => {
                 const { txHash: sent } = await payOnSepolia(address!, payee, amount, authorization);
@@ -393,7 +400,7 @@ const SettlementSection = ({
           <Button
             tone="ghost"
             small
-            disabled={state.phase === 'pending' || !txHash || !payee || !amount}
+            disabled={isBusy(state.phase) || !txHash || !payee || !amount}
             onClick={() => void run('Verify payment', () => verifyAndStore(txHash, rail))}
           >
             Verify payment
