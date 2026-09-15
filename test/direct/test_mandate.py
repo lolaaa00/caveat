@@ -26,6 +26,35 @@ def test_activation_freezes_a_policy_commitment(caveat, make_mandate, direct_vm,
     assert record['commitment'] == commitment
 
 
+def test_self_mandate_principal_as_own_agent_is_currently_allowed(
+    caveat, make_mandate, direct_vm, agent
+):
+    """
+    create_mandate never compares `agent` to the caller/principal — a principal can name
+    themselves as their own agent. This is allowed by omission, not an explicit design
+    choice, so it's pinned here as a visible, deliberate behavior rather than an untested
+    gap: it has legitimate uses (a single operator running their own automation, or
+    testing), and the checkpoint runs the same way regardless of who holds the agent key.
+    If this is ever restricted, this test should fail loudly instead of the restriction
+    silently landing as a side effect of an unrelated change. See docs/threat-model.md,
+    'Self-mandates (principal == agent)'.
+
+    Uses the `agent` fixture for both roles (rather than `principal`) because only
+    addresses resolved after the contract module loads carry the SDK's `Address` wrapper
+    (`.as_hex`) that `make_mandate` needs — `principal` is resolved earlier, as plain
+    bytes, as a side effect of the `caveat` fixture's own setup order. Both fixtures are
+    equally valid addresses; this just sidesteps that ordering quirk.
+    """
+    mandate_id = make_mandate(sender=agent, agent=agent)
+    record = mandate_of(caveat, mandate_id)
+    assert record['agent'] == agent.as_hex
+    assert record['principal'] == agent.as_hex
+
+    direct_vm.sender = agent
+    commitment = caveat.activate_mandate(mandate_id)
+    assert commitment.startswith('0x')
+
+
 def test_only_principal_may_activate(caveat, make_mandate, direct_vm, agent, stranger):
     mandate_id = make_mandate()
     for imposter in (agent, stranger):

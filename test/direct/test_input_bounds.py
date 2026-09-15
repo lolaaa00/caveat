@@ -19,10 +19,12 @@ from conftest import (
     EXPIRY_EPOCH,
     HARD_CONSTRAINTS,
     INTENT,
+    JUDGEMENT_PROMPT_PATTERN,
     PURPOSE,
     RECONFIRM_POLICY,
     SEMANTIC_CONDITION,
     flight,
+    judgement_response,
     mandate_of,
     proposal_of,
 )
@@ -298,3 +300,60 @@ def test_pure_constraint_mandate_with_no_sources_or_questions_is_valid(make_mand
     semantic conditions I've stated matter.'
     """
     _make_mandate_with_sources(make_mandate, direct_vm, sources=[], questions=[])
+
+
+def test_no_evidence_mandate_reaches_execute_via_constraints_and_judgement_alone(
+    active_mandate, submit, caveat, direct_vm
+):
+    """
+    The mandate-creation test above only proves a pure-constraint mandate is *valid to
+    create*. This proves it all the way through evaluation: with zero evidence questions,
+    evaluate_proposal never fetches anything or calls extraction — it runs deterministic
+    hard constraints, then semantic judgement against the mandate text and proposed action
+    alone, and can still reach EXECUTE. The empty evidence list is real, not a hidden
+    default that silently disables the checkpoint.
+    """
+    mandate_id = active_mandate(approved_sources=[], evidence_questions=[])
+    proposal_id = submit(mandate_id, flight(arrival='06:45'))
+
+    direct_vm.mock_llm(
+        JUDGEMENT_PROMPT_PATTERN, judgement_response('EXECUTE', 'INTENT_SATISFIED')
+    )
+    verdict = caveat.evaluate_proposal(proposal_id)
+
+    assert verdict == 'EXECUTE'
+    record = proposal_of(caveat, proposal_id)
+    assert record['evidence'] == []
+    assert record['status'] == 'EXECUTE_APPROVED'
+
+
+def test_no_evidence_mandate_with_time_sensitive_conditions_is_not_auto_protected(
+    active_mandate, submit, caveat, direct_vm
+):
+    """
+    Documents a real, accepted limitation (see docs/threat-model.md, 'No-evidence
+    (pure-constraint) mandates'): the contract cannot tell whether semantic_conditions
+    genuinely depend on an external, checkable fact. A principal who writes a time- or
+    fact-sensitive condition but configures no evidence policy gets no automatic
+    protection — judgement runs against the mandate text and proposed action alone, with
+    nothing external to check it against. This is not a silent bypass to a fixed verdict
+    (the model still decides, per-case), but it is not a substitute for the evidence
+    policy either. Evidence selection is the principal's responsibility.
+    """
+    mandate_id = active_mandate(
+        approved_sources=[],
+        evidence_questions=[],
+        semantic_conditions='Only proceed if the conference venue has not changed.',
+    )
+    proposal_id = submit(mandate_id, flight(arrival='06:45'))
+
+    direct_vm.mock_llm(
+        JUDGEMENT_PROMPT_PATTERN, judgement_response('EXECUTE', 'INTENT_SATISFIED')
+    )
+    verdict = caveat.evaluate_proposal(proposal_id)
+
+    assert verdict == 'EXECUTE', (
+        'documents current behavior: with no evidence configured, judgement runs on '
+        'mandate text alone and can reach EXECUTE even for a fact-sensitive condition — '
+        'evidence policy is the principal\'s responsibility, not enforced by the contract'
+    )

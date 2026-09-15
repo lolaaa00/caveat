@@ -145,6 +145,83 @@ cannot complete is never rendered as settled.
 **Limitation.** This proves a payment references a decision. It does not prove the payee
 was the right merchant; choosing the payee is the executor's responsibility.
 
+## 12. No-evidence (pure-constraint) mandates
+
+**Not an attack** — a design mode worth stating explicitly. `create_mandate` allows both
+`approved_sources` and `evidence_questions` to be empty simultaneously (they must be
+symmetrically empty or symmetrically non-empty; one non-empty with the other empty is
+rejected). A mandate created this way still runs deterministic hard constraints, then
+semantic judgement against the mandate text and the proposed action — it can reach
+`EXECUTE`, `RECONFIRM`, or `BLOCK` exactly like an evidence-backed mandate, just without any
+external fact-check. This is a principal-chosen configuration ("no live evidence needed,
+only my stated constraints and conditions matter"), not an accidental bypass of the
+checkpoint: the semantic judgement step still runs and still has to agree the action is
+faithful to the mandate.
+
+**Real limitation.** The contract has no way to tell whether a mandate's
+`semantic_conditions` genuinely depend on an external, checkable fact. A principal who
+writes a time- or fact-sensitive condition but configures no evidence policy gets no
+automatic protection against that specific gap — evidence selection is the principal's
+responsibility (see "First-party source trust" below).
+
+**Tested.**
+`test/direct/test_input_bounds.py::test_no_evidence_mandate_reaches_execute_via_constraints_and_judgement_alone`,
+`test/direct/test_input_bounds.py::test_no_evidence_mandate_with_time_sensitive_conditions_is_not_auto_protected`.
+
+## 13. Excerpt/answer_schema conformance is not contract-enforced
+
+**Attack/gap.** `_extract_claim` asks the model to answer according to a declared
+`answer_schema` (e.g. `"HH:MM in 24-hour local time, or NOT_FOUND"`), but the contract never
+validates the returned claim's *shape* against that schema — only that its excerpt is
+genuinely, verbatim present in the fetched content. A claim that does not conform to its own
+schema is still accepted as `LIVE`, supported evidence, as long as the excerpt check passes.
+
+**Mitigation (partial).** This is bounded by consensus, not schema validation: both
+validators in the equivalence-principle round must agree byte-for-byte on the
+`content_digest` — the exact bounded content each independently fetched — and on the claim
+and excerpt themselves (see `_EVIDENCE_PRINCIPLE`). A single dishonest or confused validator
+cannot unilaterally inject a malformed claim; it has to survive comparison against another
+validator's independent extraction from the same content.
+
+**Accepted, not fixed.** Schema conformance checking was deliberately left contract-side
+absent rather than added under deadline pressure — a general-purpose schema validator for
+free-text `answer_schema` values (not just enums or booleans) is itself a source of new bugs
+if rushed.
+
+**Tested.**
+`test/direct/test_evidence_integrity.py::test_a_claim_that_does_not_conform_to_its_answer_schema_is_still_accepted`.
+
+## 14. Self-mandates (principal == agent)
+
+**Not an attack.** `create_mandate` never compares `agent` to the caller or to `principal` —
+a principal can name themselves as their own agent. This is allowed by omission rather than
+by explicit design intent, but it has legitimate uses (a single operator running their own
+automation; testing) and the checkpoint behaves identically regardless of who holds the
+agent key — the semantic judgement doesn't relax because principal and agent are the same
+address. CAVEAT's core guarantee (that authority can go stale even though the signature is
+still valid) holds the same way whether or not the agent is a separate party.
+
+**Tested.**
+`test/direct/test_mandate.py::test_self_mandate_principal_as_own_agent_is_currently_allowed`.
+The real two-wallet delegated-authority flow (distinct principal and agent keys) is proven
+on-chain by `scripts/e2e.py`, which funds and uses `CAVEAT_PRINCIPAL_PRIVATE_KEY` and
+`CAVEAT_AGENT_PRIVATE_KEY` as two separate accounts for every scenario it runs.
+
+## 15. Evidence-source redirects and SSRF beyond static URL validation
+
+**Attack.** An approved source URL passes `_validate_source_url`'s static checks at
+mandate-creation time (public HTTPS host, no credentials, no fragment, not a private/
+loopback/reserved address) but later redirects — server-side, at fetch time — to a private
+or internal address.
+
+**Mitigation.** This is not enforced by the contract; it relies entirely on GenVM's own
+non-deterministic web-fetch runtime guaranteeing that fetches (including any redirect it
+follows) never reach private network destinations, as already noted in
+`_validate_source_url`'s docstring. No test in this repository exercises that runtime
+boundary — it is not something a contract-level or direct-mode test can observe, since the
+redirect-following happens inside GenVM's fetch implementation, not in contract code.
+Recorded here as relying on the platform's guarantee, not this contract's.
+
 ## Accepted limitations
 
 - **Model quality.** Consensus reduces variance; it does not make the judgement infallible. This is why `RECONFIRM` hands the decision back to a human rather than silently proceeding.
