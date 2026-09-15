@@ -10,6 +10,9 @@ from __future__ import annotations
 import dataclasses
 import json
 import os
+import re
+import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 
 from genlayer_py import create_account, create_client, generate_private_key
@@ -181,3 +184,36 @@ def _hex(value) -> str:
 
 def contract_code() -> str:
     return CONTRACT_PATH.read_text()
+
+
+def source_commit() -> str:
+    """
+    The exact commit of this repo being deployed. A deployment manifest that doesn't
+    record this can never be checked against the source that was actually reviewed —
+    `git rev-parse HEAD` is captured at deploy time, not guessed or copy-pasted later.
+    """
+    return subprocess.run(
+        ['git', 'rev-parse', 'HEAD'], cwd=ROOT, capture_output=True, text=True, check=True
+    ).stdout.strip()
+
+
+def runtime_pin() -> str:
+    """The exact `Depends` value the deployed contract's header declares."""
+    match = re.search(r'"Depends":\s*"([^"]+)"', contract_code())
+    return match.group(1) if match else ''
+
+
+def schema_parity(client, address: str) -> dict:
+    """
+    Compare the deployed contract's schema (read back from chain) against the schema
+    generated from the exact local source that was just deployed. This is the
+    reproducible parity evidence: not proof of a full bytecode/source diff (no such
+    readback method is exposed by the SDK), but proof the deployed contract's public
+    interface matches what `contracts/caveat.py` declares right now.
+    """
+    deployed = client.get_contract_schema(address)
+    from_source = client.get_contract_schema_for_code(contract_code())
+    return {
+        'matches': deployed == from_source,
+        'checked_at': datetime.now(timezone.utc).isoformat(),
+    }
