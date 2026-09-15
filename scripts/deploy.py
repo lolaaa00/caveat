@@ -23,6 +23,9 @@ from studio import (
     funded_account,
     read_env,
     require_success,
+    runtime_pin,
+    schema_parity,
+    source_commit,
     studio_client,
     tx_fees,
     write_env,
@@ -57,6 +60,12 @@ def main() -> int:
         print(json.dumps(receipt, indent=2, default=str)[:2000], file=sys.stderr)
         return 1
 
+    print('  checking schema parity against local source...')
+    try:
+        parity = schema_parity(client, address)
+    except Exception as exc:  # noqa: BLE001 - parity is evidence, not a deploy gate
+        parity = {'matches': None, 'error': str(exc)}
+
     record = {
         'network': 'studio_devnet',
         'chain_id': CHAIN_ID,
@@ -66,6 +75,9 @@ def main() -> int:
         'deployed_at': datetime.now(timezone.utc).isoformat(),
         'explorer_contract': explorer_address(address),
         'explorer_tx': explorer_tx(tx_hash),
+        'source_commit': source_commit(),
+        'runtime': runtime_pin(),
+        'schema_parity': parity,
     }
     ARTIFACTS.mkdir(exist_ok=True)
     target = ARTIFACTS / 'deployment.studio_devnet.json'
@@ -76,6 +88,9 @@ def main() -> int:
     print('  contract  ', address)
     print('  tx        ', _hex(tx_hash))
     print('  explorer  ', record['explorer_contract'])
+    print('  commit    ', record['source_commit'])
+    print('  runtime   ', record['runtime'])
+    print('  parity    ', 'MATCH' if parity.get('matches') else parity)
     print('  recorded  ', target.relative_to(target.parents[1]))
     return 0
 
