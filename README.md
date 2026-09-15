@@ -271,6 +271,39 @@ GenLayer validator web access covers evidence; keyless public RPCs cover settlem
 verification client-side; Sepolia and Solana devnet funds come from free faucets; Studio Next has a
 built-in faucet the deploy script calls automatically.
 
+## MCP server
+
+Any MCP-compatible agent can call CAVEAT directly — no frontend, no backend, nothing to
+host. `scripts/mcp_server.py` is a local stdio process that turns all 15 contract methods
+into MCP tools by calling `genlayer-js`'s Python counterpart (`genlayer-py`) the same way
+`scripts/e2e.py` already does. Stop the process and nothing is lost: every fact it exposes
+lives on chain, not in the server.
+
+```bash
+claude mcp add caveat \
+  --env CAVEAT_AGENT_PRIVATE_KEY=0x... \
+  --env CAVEAT_PRINCIPAL_PRIVATE_KEY=0x... \
+  -- python3 scripts/mcp_server.py
+```
+
+Reads (`get_mandate`, `get_proposal`, `is_executable`, `list_mandates`, `list_proposals`,
+`proposals_for_mandate`, `authorization_artifact`) need no key — contract reads cost no
+gas, so the server binds them to a throwaway, unfunded identity generated once per process.
+Writes need whichever key the action requires — `CAVEAT_PRINCIPAL_PRIVATE_KEY` for
+`create_mandate`/`activate_mandate`/`revoke_mandate`/`reconfirm`/`reject`,
+`CAVEAT_AGENT_PRIVATE_KEY` for `submit_proposal`/`evaluate_proposal`, either for
+`consume_approval`. A tool call with no matching key configured returns a clear tool error
+instead of crashing the server.
+
+It implements the MCP stdio JSON-RPC protocol directly (initialize, tools/list, tools/call)
+rather than depending on the official `mcp` Python package, whose dependency chain pulls in
+a from-source Rust build of `cryptography` with no prebuilt wheel on some platforms — slow
+and fragile for a project that otherwise needs nothing beyond the RC toolchain already
+pinned in `BUILD_DECISIONS.md`. No new dependency was added to `requirements.txt`.
+
+Verified live: `tools/list` returns all 15 tools; `get_mandate`/`list_mandates` read real
+on-chain state; `submit_proposal` submitted a real proposal under real consensus.
+
 ## Roadmap
 
 The contract knows nothing about flights. It stores an `action_type`, an opaque
@@ -284,7 +317,6 @@ so new verticals are new adapters, not new contracts.
 | Marketplace purchase | Stock, dispatch and seller-standing evidence |
 | Treasury action | Counterparty and rate evidence ahead of a transfer |
 | Cross-chain execution | The gate stays on GenLayer; each chain's executor verifies its own settlement |
-| Agent SDK | `is_executable` / `consume_approval` as a two-call integration for any agent framework |
 
 ## Repository
 
@@ -296,6 +328,7 @@ lib/                           config, types, genlayer client, wallet, fixtures
 lib/settlement/                the payment leg — client-side, outside the contract
 scripts/deploy.py              deploy to Studio Next + write evidence artifacts
 scripts/e2e.py                 full lifecycle on chain
+scripts/mcp_server.py          MCP server — the contract, exposed to any agent
 test/direct/                   60 in-process tests
 test/integration/              5 tests on chain 61997
 public/evidence/               first-party evidence pages for the demo
