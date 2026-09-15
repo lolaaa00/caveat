@@ -7,6 +7,7 @@ is a different deployment: its addresses and transactions are not evidence for t
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import os
 from pathlib import Path
@@ -22,6 +23,17 @@ ARTIFACTS = ROOT / 'artifacts'
 
 EXPLORER = 'https://explorer-studio-dev.genlayer.com'
 CHAIN_ID = 61997
+
+# The installed SDK still ships its studio_devnet chain object pointed at the
+# studio-dev.genlayer.com hostname. Same backend, same chain id (verified: block
+# heights match within one block) — the hackathon just requires the studio-next
+# hostname, so override the RPC URL rather than anything else about the chain.
+STUDIO_NEXT_RPC_URL = 'https://studio-next.genlayer.com/api'
+studio_next = dataclasses.replace(
+    studio_devnet,
+    name='GenLayer Studio Next',
+    rpc_urls={'default': {'http': [STUDIO_NEXT_RPC_URL]}},
+)
 
 # Studio faucet grant, in wei. Enough for deployment plus a demo run under the v0.6 fee stack.
 FUNDING_WEI = 10**21
@@ -91,7 +103,7 @@ def tx_fees(client, options: dict | None = None) -> dict:
 
 
 def studio_client(account=None):
-    return create_client(chain=studio_devnet, account=account)
+    return create_client(chain=studio_next, account=account)
 
 
 def funded_account(client, private_key: str, label: str):

@@ -7,7 +7,7 @@ networks:
   default: studio_devnet
   studio_devnet:
     id: 61997
-    url: https://studio-dev.genlayer.com/api
+    url: https://studio-next.genlayer.com/api
     default_wait_interval: 3000
     default_wait_retries: 60
 

@@ -3,7 +3,7 @@
 ## Setup before you present
 
 **Live and already deployed:** the console is at
-[caveat-xi.vercel.app](https://caveat-xi.vercel.app), contract `0x0EF51C68BC0D1394b5F3880e593867ddDd0b7E31`
+[caveat-xi.vercel.app](https://caveat-xi.vercel.app), contract `0x2274Ce90b9A91016c3935a5807e684c5B99Da5c7`
 on chain 61997, evidence source already public. Open the live URL, connect MetaMask,
 approve the switch to chain 61997, and go to `/demo` — no setup needed. All three
 verdicts below have already been proven live on chain once (see the README's
