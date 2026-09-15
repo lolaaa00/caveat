@@ -1,10 +1,17 @@
 {
   "network": "studio_devnet",
   "chain_id": 61997,
-  "contract_address": "0x2274Ce90b9A91016c3935a5807e684c5B99Da5c7",
-  "deployment_tx": "0x2209a51915923425ebf4ec6d681655826e5a0d732967d2603380e842445be359",
+  "contract_address": "0x0B063A6Fb5aFA78bc8C1F9C77abf73cb5Ff7Dd14",
+  "deployment_tx": "0x587c5e7378646630e7c41d4f470b2ecdd42c058f48caa760f9b1e660b58a1302",
   "deployer": "0x19Fbc43de9F8dbcE33FBa7ad34e9F4eE49E565E1",
-  "deployed_at": "2026-09-13T23:43:10.265785+00:00",
-  "explorer_contract": "https://explorer-studio-dev.genlayer.com/address/0x2274Ce90b9A91016c3935a5807e684c5B99Da5c7",
-  "explorer_tx": "https://explorer-studio-dev.genlayer.com/tx/0x2209a51915923425ebf4ec6d681655826e5a0d732967d2603380e842445be359"
+  "deployed_at": "2026-09-15T20:12:49.830240+00:00",
+  "explorer_contract": "https://explorer-studio-dev.genlayer.com/address/0x0B063A6Fb5aFA78bc8C1F9C77abf73cb5Ff7Dd14",
+  "explorer_tx": "https://explorer-studio-dev.genlayer.com/tx/0x587c5e7378646630e7c41d4f470b2ecdd42c058f48caa760f9b1e660b58a1302",
+  "source_commit": "3ae7a11a780833af716cf97874c4bf44f2e30d41",
+  "runtime": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng",
+  "schema_parity": {
+    "matches": true,
+    "checked_at": "2026-09-15T20:12:49.830186+00:00"
+  },
+  "deployed_via": "genlayer CLI 0.40.0-rc.3 (native deploy), local devDependency"
 }

@@ -82,13 +82,16 @@ none of them; it reads state and submits signed transactions.
 | --- | --- |
 | Live console | **[caveat-xi.vercel.app](https://caveat-xi.vercel.app)** |
 | Repository | **[github.com/lolaaa00/caveat](https://github.com/lolaaa00/caveat)** |
-| Network | GenLayer Studio Next / Studio-dev |
+| Network | GenLayer Studio Next |
+| RPC | `https://studio-next.genlayer.com/api` |
 | Chain ID | **61997** |
-| Contract | [`0x2274Ce90b9A91016c3935a5807e684c5B99Da5c7`](https://explorer-studio-dev.genlayer.com/address/0x2274Ce90b9A91016c3935a5807e684c5B99Da5c7) |
-| Deployment tx | [`0x2209a519…45be359`](https://explorer-studio-dev.genlayer.com/tx/0x2209a51915923425ebf4ec6d681655826e5a0d732967d2603380e842445be359) |
+| Contract | [`0x0B063A6Fb5aFA78bc8C1F9C77abf73cb5Ff7Dd14`](https://explorer-studio-dev.genlayer.com/address/0x0B063A6Fb5aFA78bc8C1F9C77abf73cb5Ff7Dd14) |
+| Deployment tx | [`0x587c5e73…8a1302`](https://explorer-studio-dev.genlayer.com/tx/0x587c5e7378646630e7c41d4f470b2ecdd42c058f48caa760f9b1e660b58a1302) |
 | Consensus / execution | `MAJORITY_AGREE` / `SUCCESS` |
-| Source commit | `0f367da` (this repo, `main`) |
-| Runtime | py-genlayer runner, genvm-manager bundle v0.6.0-rc5 |
+| Source commit | `3ae7a11` (this repo, `main`) |
+| Runtime | `py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng` (pinned, verified against this exact deployment) |
+| Deployed via | `genlayer` CLI `0.40.0-rc.3` (native `genlayer deploy`), local devDependency — not global |
+| Schema parity | **matches** local source at the commit above — checked live via `get_contract_schema`/`get_contract_schema_for_code`, recorded in the manifest |
 | Evidence | `artifacts/deployment.studio_devnet.json`, `artifacts/e2e.studio_devnet.json` |
 
 Studio Next is a resettable preview network. If the deployment has been reset, redeploy
@@ -96,19 +99,23 @@ with `npm run deploy` — it takes about a minute and writes fresh evidence arti
 
 ### All three verdicts, proven live
 
-Every outcome below ran against the current deployed contract (`0x2274Ce90…`) on chain
+Every outcome below ran against the current deployed contract (`0x0B063A6F…`) on chain
 61997 — real validators, real web retrieval, real LLM judgement under consensus, real
-transactions. One mandate (`MND-0017`), three proposals, three verdicts.
+transactions. One mandate (`MND-0012`), three proposals, three verdicts.
 Full record in `artifacts/e2e.studio_devnet.json`.
 
 | Scenario | Proposal | Verdict | What happened on chain |
 | --- | --- | --- | --- |
-| A — context drift | [`CAV-0018`](https://explorer-studio-dev.genlayer.com/tx/0x03d578f03b70a1e2b4bdc5660e563d0bd6a6bd4574eeaec8794e63166ba74f00) | **RECONFIRM** | Validators fetched the live schedule (`08:00`), judged the 10:30 arrival against the mandate, locked execution — then the principal [reconfirmed](https://explorer-studio-dev.genlayer.com/tx/0x8d2e0ecdf88bd94fa0e69f03ef7120f8ab56d20281a7fdfb13be82742f2fec48) and execution unlocked |
-| B — intent satisfied | [`CAV-0019`](https://explorer-studio-dev.genlayer.com/tx/0xc28ebe27d6d90a906ba81e24e64d2f010ab5cb7533efbe26f04031d6f71e0dd0) | **EXECUTE** | Same live evidence, 06:45 arrival — checkpoint cleared, approval opened, then [consumed](https://explorer-studio-dev.genlayer.com/tx/0x0ac924b1bef5a82522fe0477e476080bad17a8ca8cc1120d3460140f0a8da21e) exactly once |
-| C — explicit prohibition | [`CAV-0020`](https://explorer-studio-dev.genlayer.com/tx/0x4a7a46e5f6c35a5f12dddb9793244a05049f8ddddb212f975880eeb935b76d1e) | **BLOCK** | Non-refundable fare — decided by a deterministic pre-check, no evidence fetched, no model invoked |
+| A — context drift | [`CAV-0014`](https://explorer-studio-dev.genlayer.com/tx/0xc2f522fbda84b719ecfc8e685b3c6f1aa57da91601bfc4b4dfc16cd16509d93f) | **RECONFIRM** | Validators fetched the live schedule (`08:00`), judged the 10:30 arrival against the mandate, locked execution — then the principal [reconfirmed](https://explorer-studio-dev.genlayer.com/tx/0xd6e28065f985bd6e0011e888905f0f3a6df085d4d7c2c1b2be0b3d648aa5b2ff) and execution unlocked |
+| B — intent satisfied | [`CAV-0015`](https://explorer-studio-dev.genlayer.com/tx/0x37ac4e365ccb88f85d2c84bd7fddd067d691a0d02e484b97fef67f2b5c3ec92e) | **EXECUTE** | Same live evidence, 06:45 arrival — checkpoint cleared, approval opened, then [consumed](https://explorer-studio-dev.genlayer.com/tx/0x6881a7125272f873bc2902cbb40207038d8645f00bd0f75b8d6c74a29930376c) exactly once |
+| C — explicit prohibition | [`CAV-0018`](https://explorer-studio-dev.genlayer.com/tx/0xb3c83c9c66b814138273cd8e6118c84c86a400e8c2fd706d34080378e7e1f55b) | **BLOCK** | Non-refundable fare — decided by a deterministic pre-check, no evidence fetched, no model invoked |
 
 Also proven on chain (`test/integration/`): deployment, mandate lifecycle, the one-time
-execution gate, and a rejected replay.
+execution gate, and a rejected replay. The stale-approval-invalidation property (a second
+proposal's reconfirmation staling a first, already-approved one) is proven deterministically
+by `test/direct/test_stale_approval.py` (7/7 passing, including the exact headline scenario)
+— live re-runs of that specific interaction are inherently non-deterministic, since it only
+fires when the model judges a *second* proposal to also need reconfirmation.
 
 > Studio Next (61997) is **not** StudioNet (61999). They are different deployments with
 > different chain IDs, and evidence from one is not evidence for the other.
@@ -147,25 +154,28 @@ npm run dev             # console on http://localhost:3000
 ## Testing
 
 ```bash
-npm run test:contract      # 125 in-process tests against the real SDK
-npm run test:integration   # integration tests on chain 61997 (~4 min, real validators)
-python3 scripts/e2e.py     # full lifecycle on chain, writes artifacts/
-npm run typecheck          # frontend types
-npm run build              # production build
+npm run test:contract           # 130 in-process tests against the real SDK
+npm run test:integration        # integration tests on chain 61997 (~4 min, real validators)
+.venv/bin/python scripts/e2e.py # full lifecycle on chain, writes artifacts/
+npm run typecheck               # frontend types
+npm run build                   # production build
 ```
+
+`scripts/e2e.py` must run under `.venv/bin/python`, not the bare `python3` on macOS — see
+Setup above for why.
 
 | Suite | Tests | Covers |
 | --- | --- | --- |
-| `test/direct/test_mandate.py` | 14 | Lifecycle, permissions, expiry, evidence-policy validation |
-| `test/direct/test_deterministic_checks.py` | 12 | Budget, destination, refundability, missing fields, wrong agent, stale mandate, re-evaluation |
-| `test/direct/test_semantic.py` | 11 | All three verdicts, `INCONCLUSIVE`, fail-closed, fallback capping, evidence digests |
-| `test/direct/test_execution_gate.py` | 18 | Gate, reconfirmation, rejection, replay, revocation, expiry, **gate-parity** (is_executable / get_proposal.executable / consume_approval must agree) |
+| `test/direct/test_mandate.py` | 15 | Lifecycle, permissions, expiry, evidence-policy validation, self-mandate (`agent == principal`) documented as allowed |
+| `test/direct/test_deterministic_checks.py` | 13 | Budget, destination, refundability, missing fields, wrong agent, stale mandate, re-evaluation |
+| `test/direct/test_semantic.py` | 8 | All three verdicts, `INCONCLUSIVE`, fail-closed, fallback capping, evidence digests |
+| `test/direct/test_execution_gate.py` | 19 | Gate, reconfirmation, rejection, replay, revocation, expiry, **gate-parity** (is_executable / get_proposal.executable / consume_approval share one predicate — proven by literal delegation, not just agreement) |
 | `test/direct/test_stale_approval.py` | 7 | Stale-approval bypass prevention, all staleness paths |
-| `test/direct/test_security.py` | 9 | Prompt-injection fencing, truncation, agent-crafted evidence, policy mutation |
-| `test/direct/test_evidence_integrity.py` | 9 | Excerpt verification, content digests, consensus-failure fail-closed |
+| `test/direct/test_security.py` | 8 | Prompt-injection fencing, truncation, agent-crafted evidence, policy mutation |
+| `test/direct/test_evidence_integrity.py` | 10 | Excerpt verification, content digests, consensus-failure fail-closed, answer-schema conformance documented as a known limitation |
 | `test/direct/test_hostile_input.py` | 6 | Prompt injection in payload, action summary, and via evidence source |
-| `test/direct/test_input_bounds.py` | 28 | Field length caps, decimal precision, canonical digests, **URL safety** (private IPs, credentials, fragments, non-https), sources/questions consistency |
-| `test/direct/test_authorization_artifact.py` | 11 | Authorization artifact correctness and binding |
+| `test/direct/test_input_bounds.py` | 38 | Field length caps, decimal precision, canonical digests, **URL safety** (private IPs, credentials, fragments, non-https), sources/questions consistency, no-evidence (pure-constraint) mandates reaching a verdict |
+| `test/direct/test_authorization_artifact.py` | 6 | Authorization artifact correctness and binding |
 | `test/integration/test_studio_next.py` | — | Same behaviour on chain 61997 |
 
 ## Environment variables

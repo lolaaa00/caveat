@@ -3,7 +3,7 @@
 ## Setup before you present
 
 **Live and already deployed:** the console is at
-[caveat-xi.vercel.app](https://caveat-xi.vercel.app), contract `0x2274Ce90b9A91016c3935a5807e684c5B99Da5c7`
+[caveat-xi.vercel.app](https://caveat-xi.vercel.app), contract `0x0B063A6Fb5aFA78bc8C1F9C77abf73cb5Ff7Dd14`
 on chain 61997, evidence source already public. Open the live URL, connect MetaMask,
 approve the switch to chain 61997, and go to `/demo` — no setup needed. All three
 verdicts below have already been proven live on chain once (see the README's
@@ -114,10 +114,10 @@ Never present a fixture as a verdict. If the network is down, say the network is
 ## Command reference
 
 ```bash
-npm run test:contract      # 60 direct tests, no network
-npm run lint:contract      # genvm-lint check + validate + typecheck
-npm run deploy             # deploy to Studio Next (chain 61997)
-python3 scripts/e2e.py     # full lifecycle on chain, writes artifacts/
-npm run test:integration   # gltest against studio_devnet (~4 min, real fees)
+npm run test:contract           # 130 direct tests, no network
+npm run lint:contract           # genvm-lint check + validate + typecheck
+npm run deploy                  # deploy to Studio Next (chain 61997)
+.venv/bin/python scripts/e2e.py # full lifecycle on chain, writes artifacts/
+npm run test:integration        # gltest against studio_devnet (~4 min, real fees)
 npm run dev                # the console on http://localhost:3000
 ```

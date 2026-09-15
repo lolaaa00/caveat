@@ -23,12 +23,12 @@ Studio Next proof. The environments have different chain IDs and different deplo
 
 | Component | Version |
 | --- | --- |
-| GenLayer CLI | `0.40.0-rc.3` (npm, global) |
+| GenLayer CLI | `0.40.0-rc.3` (npm, **local devDependency** — `npx genlayer`, not global) |
 | genlayer-js | `2.0.0-rc.1` |
 | genlayer-py | `0.19.0rc2` |
 | genlayer-test (gltest) | `0.30.0rc2` |
 | genvm-linter | `0.11.1rc2` |
-| GenVM Manager | `v0.6.0-rc3` |
+| GenVM Manager | `v0.6.0-rc5` (runner hash verified against this bundle) |
 | Intelligent Contract API | `v0.3.0` |
 | Node | v20.20.2 |
 | Python | 3.12 (local `.venv`; system Python 3.9 is too old for the RC stack) |
@@ -100,11 +100,25 @@ needs money, it gets cut or replaced, not billed.
 
 Recorded so they are not re-litigated later.
 
-1. **Transaction Kit is not a published package.** `genlayerlabs/genlayer-transaction-kit`
-   is a private monorepo (`"private": true`, workspace packages) and nothing matching it
-   exists on npm. The frontend therefore calls `genlayer-js@2.0.0-rc.1` directly and takes
-   its fee quote from `client.estimateTransactionFees()`. Fee values are never hardcoded.
-   Revisit if the kit is published.
+1. **Transaction Kit RC2 is now published** (`@genlayer/transaction-kit@0.1.0-rc.2` +
+   `@genlayer/transaction-kit-react@0.1.0-rc.2`), superseding the earlier finding that it
+   was a private monorepo. **Decision: stay on raw `genlayer-js@2.0.0-rc.1`, verified
+   rather than assumed.** Transaction Kit's stated responsibilities — fee
+   estimation/quoting, submission, status tracking, and transaction verification — are all
+   already implemented directly in `lib/genlayer/caveat.ts`'s `send()`: live fee quotes via
+   `client.estimateTransactionFees()` (never hardcoded), submission via `writeContract`,
+   decision tracking via `waitForTransactionReceipt({ waitUntil: 'decided' })`, and
+   execution-success verification via `isSuccessful()` plus an explicit
+   `lifecycle.outcome` check. A framework adapter is not mandated by the hackathon rules
+   for an application that already meets every fee/lifecycle requirement through the base
+   SDK. Revisit only if Transaction Kit exposes a capability the raw SDK genuinely lacks
+   (e.g. richer intermediate UI states — see the frontend TxPhase gap noted separately),
+   not merely because it exists.
+
+1b. **Local, not global, GenLayer CLI.** `genlayer@0.40.0-rc.3` is installed as a project
+   `devDependency` (`npx genlayer ...`), not `npm install -g`, so the toolchain is
+   reproducible from a clean clone instead of depending on whatever happens to be on the
+   machine's global PATH.
 
 2. **Deployments and writes revert without a FeesDistribution.** The first deploy attempt
    failed with `FeesDistributionMissing`. Every write in the scripts, tests and frontend
@@ -147,4 +161,20 @@ Recorded so they are not re-litigated later.
 
 11. **macOS `python3` is 3.9 and the RC stack has no wheels for it.** The npm scripts call
     `.venv/bin/python` explicitly so a clean clone fails loudly at venv creation rather
-    than confusingly at import time.
+    than confusingly at import time. `scripts/e2e.py` needs the same explicit interpreter —
+    running it under the bare `python3` fails the same way.
+
+12. **Deployed source/code readback does not exist in `genlayer-py==0.19.0rc2`.** There is
+    no `get_code`/`eth_getCode`-equivalent method. The closest available parity mechanism is
+    schema comparison: `get_contract_schema(address)` (the deployed contract's live ABI) vs.
+    `get_contract_schema_for_code(local_source)` (the schema generated from the current
+    working tree, without deploying) — both gated by `is_studio_chain`, both usable on
+    Studio Next. `scripts/studio.py::schema_parity()` runs this and the result is recorded
+    in `artifacts/deployment.studio_devnet.json` as `schema_parity`. This proves method-level
+    parity, not a byte-for-byte source diff.
+
+13. **The GenVM runner pin (`py-genlayer:5jycge…`) was verified, not guessed.** It matches
+    the hash `genvm-lint`'s own tooling resolves for `v0.6.0-rc5`, and deploying with it
+    succeeds end-to-end (schema parity confirmed against the deployed contract). Do not
+    replace it with a different hash without re-verifying the same way — a wrong pin fails
+    deployment outright, not silently.
