@@ -1,72 +1,72 @@
 {
-  "contract_address": "0x2274Ce90b9A91016c3935a5807e684c5B99Da5c7",
+  "contract_address": "0x0B063A6Fb5aFA78bc8C1F9C77abf73cb5Ff7Dd14",
   "evidence_source": "https://caveat-xi.vercel.app/evidence/amsterdam-2026-schedule.html",
-  "mandate_id": "MND-0011",
+  "mandate_id": "MND-0012",
   "scenarios": {
     "a": {
-      "proposal": "CAV-0012",
+      "proposal": "CAV-0014",
       "verdict": "RECONFIRM"
     },
     "b": {
-      "proposal": "CAV-0013",
+      "proposal": "CAV-0015",
       "verdict": "EXECUTE"
     },
     "c": {
-      "proposal": "CAV-0014",
+      "proposal": "CAV-0018",
       "verdict": "BLOCK"
     }
   },
   "transactions": [
     {
       "label": "create_mandate",
-      "tx": "0x09e4f0dd17ebfafa699608990d7b5e9f94bc5ec48ed905ae8f894912c0678f16",
-      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x09e4f0dd17ebfafa699608990d7b5e9f94bc5ec48ed905ae8f894912c0678f16"
+      "tx": "0xa300a45ae35392cbc273c9d7cee8789e4bc85fdc21a13ae311020acf271cabb7",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0xa300a45ae35392cbc273c9d7cee8789e4bc85fdc21a13ae311020acf271cabb7"
     },
     {
       "label": "activate_mandate",
-      "tx": "0xac531c17bd1505b7851c7cd4e9323940dd9df1d398e09b2b6124634a297412ac",
-      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0xac531c17bd1505b7851c7cd4e9323940dd9df1d398e09b2b6124634a297412ac"
+      "tx": "0xfc71e745bfca243722f0453b2c106d92f15292bd951f4829a4b95fd3bea4cee5",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0xfc71e745bfca243722f0453b2c106d92f15292bd951f4829a4b95fd3bea4cee5"
     },
     {
       "label": "submit_proposal",
-      "tx": "0x273f3030da0db1a12a995c1101efda19488a5c7be387b20197906bad6b1a69c7",
-      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x273f3030da0db1a12a995c1101efda19488a5c7be387b20197906bad6b1a69c7"
+      "tx": "0xd5030bcc936f711f4161e3eec999e866022a83306be7c63136c81daf5d72881b",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0xd5030bcc936f711f4161e3eec999e866022a83306be7c63136c81daf5d72881b"
     },
     {
       "label": "evaluate_proposal",
-      "tx": "0x461bb49ea21e66b0d5d40c523b9083e110f9aa01de1f49d37c0faa04f3c8bd47",
-      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x461bb49ea21e66b0d5d40c523b9083e110f9aa01de1f49d37c0faa04f3c8bd47"
+      "tx": "0xc2f522fbda84b719ecfc8e685b3c6f1aa57da91601bfc4b4dfc16cd16509d93f",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0xc2f522fbda84b719ecfc8e685b3c6f1aa57da91601bfc4b4dfc16cd16509d93f"
     },
     {
       "label": "reconfirm",
-      "tx": "0xba6ace1bddceb790ccc308671f94c4c9c239821f740c4de11a77d47309f44a27",
-      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0xba6ace1bddceb790ccc308671f94c4c9c239821f740c4de11a77d47309f44a27"
+      "tx": "0xd6e28065f985bd6e0011e888905f0f3a6df085d4d7c2c1b2be0b3d648aa5b2ff",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0xd6e28065f985bd6e0011e888905f0f3a6df085d4d7c2c1b2be0b3d648aa5b2ff"
     },
     {
       "label": "submit_proposal",
-      "tx": "0xe6df84fc5c018a4bcfe84abb724646a8b4dde9b660df43a9945161dbe13ad7f4",
-      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0xe6df84fc5c018a4bcfe84abb724646a8b4dde9b660df43a9945161dbe13ad7f4"
+      "tx": "0x843d1ffc6d15c4dbe56277aab41547790ca139d7cc895f5e1932b5c3d521f328",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x843d1ffc6d15c4dbe56277aab41547790ca139d7cc895f5e1932b5c3d521f328"
     },
     {
       "label": "evaluate_proposal",
-      "tx": "0xaff94888d826bb5a436bb19375b214c2ea61af6eb3081faa8757c1ebb545561c",
-      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0xaff94888d826bb5a436bb19375b214c2ea61af6eb3081faa8757c1ebb545561c"
+      "tx": "0x37ac4e365ccb88f85d2c84bd7fddd067d691a0d02e484b97fef67f2b5c3ec92e",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x37ac4e365ccb88f85d2c84bd7fddd067d691a0d02e484b97fef67f2b5c3ec92e"
     },
     {
       "label": "consume_approval",
-      "tx": "0x9edc85f580f7aacbe29c671fda45d24d5e54e5ceebc51b1a709b9dbb79b1d226",
-      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x9edc85f580f7aacbe29c671fda45d24d5e54e5ceebc51b1a709b9dbb79b1d226"
+      "tx": "0x6881a7125272f873bc2902cbb40207038d8645f00bd0f75b8d6c74a29930376c",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x6881a7125272f873bc2902cbb40207038d8645f00bd0f75b8d6c74a29930376c"
     },
     {
       "label": "submit_proposal",
-      "tx": "0x47a0ef48af58f7af3b2f6b1806d44e7bb62dfd2446c95376770c82bb7765fdf2",
-      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0x47a0ef48af58f7af3b2f6b1806d44e7bb62dfd2446c95376770c82bb7765fdf2"
+      "tx": "0xe5be1ecfd0d645340630bcb5a8d004babc25742bc87995c4982b922a4df7fc60",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0xe5be1ecfd0d645340630bcb5a8d004babc25742bc87995c4982b922a4df7fc60"
     },
     {
       "label": "evaluate_proposal",
-      "tx": "0xe7deb19efa4d0485a04ff27b42dd046626186166cdc307c927fce57c9eb6b6cd",
-      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0xe7deb19efa4d0485a04ff27b42dd046626186166cdc307c927fce57c9eb6b6cd"
+      "tx": "0xb3c83c9c66b814138273cd8e6118c84c86a400e8c2fd706d34080378e7e1f55b",
+      "explorer": "https://explorer-studio-dev.genlayer.com/tx/0xb3c83c9c66b814138273cd8e6118c84c86a400e8c2fd706d34080378e7e1f55b"
     }
   ],
-  "ran_at": "2026-09-13T23:54:38.798586+00:00"
+  "ran_at": "2026-09-15T21:03:34.265570+00:00"
 }
