@@ -1,10 +1,4 @@
 # { "Depends": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng" }
-# Runtime: py-genlayer runner, genvm-manager bundle v0.6.0-rc5 (genlayer-py==0.19.0rc2).
-# Pin resolved via genvm_linter.validate.artifacts.find_latest_runner() against the cached
-# v0.6.0-rc5 bundle and confirmed identical (same schema, same lint/typecheck result) to
-# what "latest" was already resolving to — this is a reproducibility pin, not a behavior
-# change. Re-resolve the same way if the toolchain's GenVM Manager version moves.
-# Target: Studio Next / Studio-dev chain 61997. Do not deploy to StudioNet 61999.
 """
 CAVEAT — a context-aware execution checkpoint for autonomous agents.
 
