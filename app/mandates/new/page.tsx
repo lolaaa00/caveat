@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import * as caveat from '@/lib/genlayer/caveat';
 import { EVIDENCE_PATH, MANDATE_TEMPLATE, evidenceUrl, isEvidenceReachable } from '@/lib/fixtures/scenarios';
+import { isBusy } from '@/lib/types';
 import { useTx } from '@/lib/wallet/useTx';
 import { useWallet } from '@/lib/wallet/useWallet';
 import { Button, Field, Panel } from '@/components/ui/primitives';
@@ -18,7 +19,7 @@ const thirtyDaysOut = () => {
 export default function NewMandate() {
   const router = useRouter();
   const wallet = useWallet();
-  const { state, run, reset } = useTx();
+  const { state, run, reset, reportPhase } = useTx();
 
   const [agent, setAgent] = useState('');
   const [intent, setIntent] = useState(MANDATE_TEMPLATE.intentText);
@@ -60,23 +61,27 @@ export default function NewMandate() {
     ];
 
     const result = await run('Create mandate', async () => {
-      const created = await caveat.createMandate(wallet.address!, {
-        agent: agent.trim(),
-        intentText: intent,
-        purposeText: purpose,
-        actionType: MANDATE_TEMPLATE.actionType,
-        hardConstraintsJson: JSON.stringify(hardConstraints),
-        semanticConditions: semantic,
-        approvedSourcesJson: JSON.stringify([resolvedSource]),
-        evidenceQuestionsJson: JSON.stringify(evidenceQuestions),
-        reconfirmPolicy: MANDATE_TEMPLATE.reconfirmPolicy,
-        expiresAt: Math.floor(new Date(expiry).getTime() / 1000),
-      });
+      const created = await caveat.createMandate(
+        wallet.address!,
+        {
+          agent: agent.trim(),
+          intentText: intent,
+          purposeText: purpose,
+          actionType: MANDATE_TEMPLATE.actionType,
+          hardConstraintsJson: JSON.stringify(hardConstraints),
+          semanticConditions: semantic,
+          approvedSourcesJson: JSON.stringify([resolvedSource]),
+          evidenceQuestionsJson: JSON.stringify(evidenceQuestions),
+          reconfirmPolicy: MANDATE_TEMPLATE.reconfirmPolicy,
+          expiresAt: Math.floor(new Date(expiry).getTime() / 1000),
+        },
+        reportPhase,
+      );
 
       const ids = await caveat.listMandateIds();
       const mandateId = typeof created.returned === 'string' ? created.returned : ids[ids.length - 1];
       if (activate && mandateId) {
-        await caveat.activateMandate(wallet.address!, mandateId);
+        await caveat.activateMandate(wallet.address!, mandateId, reportPhase);
       }
       return { ...created, mandateId };
     });
@@ -199,10 +204,10 @@ export default function NewMandate() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', paddingTop: '0.5rem' }}>
           <Button
             tone="crimson"
-            disabled={!connected || state.phase === 'pending' || !agent.trim() || !intent.trim()}
+            disabled={!connected || isBusy(state.phase) || !agent.trim() || !intent.trim()}
             onClick={() => void submit()}
           >
-            {state.phase === 'pending' ? 'Awaiting consensus…' : 'Create Mandate'}
+            {isBusy(state.phase) ? 'Working…' : 'Create Mandate'}
           </Button>
           {!connected ? (
             <span style={{ fontSize: '0.72rem', color: 'var(--color-faint)' }}>

@@ -121,12 +121,50 @@ export interface Proposal {
   executable: boolean;
 }
 
-/** Every on-chain operation reports one of these. Nothing is ever silently assumed. */
-export type TxPhase = 'idle' | 'pending' | 'success' | 'error';
+/**
+ * Every on-chain operation reports one of these. Nothing is ever silently assumed.
+ *
+ * These are the real boundaries `send()` (lib/genlayer/caveat.ts) actually crosses, not
+ * invented timers: fee estimation, then the wallet call that both signs and submits (the
+ * SDK does not expose a separate mid-point between "asked to sign" and "broadcast", so
+ * both are marked at that one call's start/end), then polling for a consensus decision.
+ * There is no 'finalized' phase — this app deliberately waits only for 'decided' (see
+ * BUILD_DECISIONS.md: finalization lags too long for interactive use), so a state that
+ * claimed to wait for finalization would be lying about what actually happened.
+ */
+export type TxPhase =
+  | 'idle'
+  | 'estimating'
+  | 'awaiting-approval'
+  | 'submitted'
+  | 'pending-consensus'
+  | 'decided'
+  | 'error';
+
+/** Phases where a write is genuinely in flight — use this, not a literal phase check,
+ * to disable buttons/inputs, since which phases count as "busy" may still grow. */
+const BUSY_PHASES: ReadonlySet<TxPhase> = new Set([
+  'estimating',
+  'awaiting-approval',
+  'submitted',
+  'pending-consensus',
+]);
+export const isBusy = (phase: TxPhase): boolean => BUSY_PHASES.has(phase);
+
+/** Where a failed write actually broke, so the UI can say why instead of just "failed". */
+export type TxFailureStage =
+  | 'estimating'
+  | 'signing'
+  | 'submitting'
+  | 'consensus'
+  | 'execution'
+  | 'timeout'
+  | 'unknown';
 
 export interface TxState {
   phase: TxPhase;
   hash?: string;
   label?: string;
   error?: string;
+  failureStage?: TxFailureStage;
 }

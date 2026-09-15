@@ -7,6 +7,7 @@ import { explorerAddress } from '@/lib/config';
 import * as caveat from '@/lib/genlayer/caveat';
 import { useChainData } from '@/lib/genlayer/useChainData';
 import { flight, summarise } from '@/lib/fixtures/scenarios';
+import { isBusy } from '@/lib/types';
 import { useTx } from '@/lib/wallet/useTx';
 import { useWallet } from '@/lib/wallet/useWallet';
 import { Button, Empty, Field, Panel, RowLink, Tag } from '@/components/ui/primitives';
@@ -21,7 +22,7 @@ export default function MandateDetail() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const wallet = useWallet();
-  const { state, run, reset } = useTx();
+  const { state, run, reset, reportPhase } = useTx();
   const [payloadText, setPayloadText] = useState(
     JSON.stringify(flight({ arrival_local_time: '10:30' }), null, 2),
   );
@@ -68,6 +69,7 @@ export default function MandateDetail() {
         mandate.mandate_id,
         JSON.stringify(parsed),
         summarise(parsed as never),
+        reportPhase,
       );
       const ids = await caveat.proposalIdsForMandate(mandate.mandate_id);
       return { ...created, proposalId: typeof created.returned === 'string' ? created.returned : ids[ids.length - 1] };
@@ -157,10 +159,10 @@ export default function MandateDetail() {
                 {mandate.status === 'DRAFT' ? (
                   <Button
                     tone="lime"
-                    disabled={state.phase === 'pending'}
+                    disabled={isBusy(state.phase)}
                     onClick={() =>
                       void run('Activate mandate', async () => {
-                        const result = await caveat.activateMandate(address!, mandate.mandate_id);
+                        const result = await caveat.activateMandate(address!, mandate.mandate_id, reportPhase);
                         refresh();
                         return result;
                       })
@@ -172,10 +174,10 @@ export default function MandateDetail() {
                 {mandate.status === 'ACTIVE' ? (
                   <Button
                     tone="crimson"
-                    disabled={state.phase === 'pending'}
+                    disabled={isBusy(state.phase)}
                     onClick={() =>
                       void run('Revoke mandate', async () => {
-                        const result = await caveat.revokeMandate(address!, mandate.mandate_id);
+                        const result = await caveat.revokeMandate(address!, mandate.mandate_id, reportPhase);
                         refresh();
                         return result;
                       })
@@ -200,7 +202,7 @@ export default function MandateDetail() {
               className="input"
             />
             <div style={{ marginTop: '0.875rem' }}>
-              <Button tone="crimson" disabled={state.phase === 'pending'} onClick={() => void submitProposal()}>
+              <Button tone="crimson" disabled={isBusy(state.phase)} onClick={() => void submitProposal()}>
                 Submit proposal
               </Button>
             </div>
