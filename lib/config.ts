@@ -7,7 +7,7 @@
 export const CHAIN_ID = Number(process.env.NEXT_PUBLIC_GENLAYER_CHAIN_ID ?? 61997);
 
 export const RPC_URL =
-  process.env.NEXT_PUBLIC_GENLAYER_RPC_URL ?? 'https://studio-dev.genlayer.com/api';
+  process.env.NEXT_PUBLIC_GENLAYER_RPC_URL ?? 'https://studio-next.genlayer.com/api';
 
 export const EXPLORER_URL =
   process.env.NEXT_PUBLIC_GENLAYER_EXPLORER_URL ?? 'https://explorer-studio-dev.genlayer.com';

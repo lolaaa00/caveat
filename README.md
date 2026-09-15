@@ -177,7 +177,7 @@ Nothing here is required for the direct tests. See `.env.example`.
 | `CAVEAT_PRINCIPAL_PRIVATE_KEY` | deploy, e2e | Testnet only. Generated automatically if absent |
 | `CAVEAT_AGENT_PRIVATE_KEY` | e2e | Testnet only. Generated automatically if absent |
 | `NEXT_PUBLIC_CAVEAT_CONTRACT_ADDRESS` | frontend | Written by `npm run deploy` |
-| `NEXT_PUBLIC_GENLAYER_RPC_URL` | — | Defaults to `https://studio-dev.genlayer.com/api` |
+| `NEXT_PUBLIC_GENLAYER_RPC_URL` | — | Defaults to `https://studio-next.genlayer.com/api` |
 | `NEXT_PUBLIC_GENLAYER_CHAIN_ID` | — | Defaults to `61997` |
 | `NEXT_PUBLIC_GENLAYER_EXPLORER_URL` | — | Defaults to the Studio Dev explorer |
 | `NEXT_PUBLIC_EVIDENCE_BASE_URL` | live demo | Public https origin serving `public/evidence/…`. Defaults to the app's own origin |

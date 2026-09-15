@@ -8,7 +8,7 @@ Locked on Day 1. These are not revisited without a real technical blocker.
 | --- | --- |
 | Target network | **GenLayer Studio Next / Studio-dev** |
 | Chain ID | **61997** |
-| RPC | `https://studio-dev.genlayer.com/api` |
+| RPC | `https://studio-next.genlayer.com/api` |
 | Explorer | `https://explorer-studio-dev.genlayer.com` |
 | CLI network name | `studio-dev` |
 | genlayer-js chain | `studioDevnet` |
