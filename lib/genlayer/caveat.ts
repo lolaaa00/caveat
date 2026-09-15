@@ -152,16 +152,37 @@ export const getAuthorizationArtifact = async (proposalId: string): Promise<stri
 // on the network too, not just ours.
 const READ_CONCURRENCY = 4;
 
-export const getMandates = async (): Promise<Mandate[]> => {
-  const ids = await listMandateIds();
+// Studio Next's observed limit is 30 gen_call requests per minute — not per contract,
+// per caller. A dashboard read is list_mandates (1) + one get_mandate per mandate, plus
+// the same shape for proposals; with enough demo history that alone exceeds the budget
+// before anything else on the page reads at all. Bounding each list to the most recent
+// N ids (ids are creation-ordered, so the tail is the most recent) keeps total dashboard
+// reads well under budget regardless of how much history the contract accumulates over
+// the life of the demo, at the cost of the topline counts reflecting recent activity
+// rather than the contract's entire history.
+const MAX_DASHBOARD_MANDATES = 15;
+const MAX_DASHBOARD_PROPOSALS = 12;
+
+const recent = <T,>(ids: T[], max: number): T[] => ids.slice(Math.max(0, ids.length - max));
+
+export interface BoundedList<T> {
+  records: T[];
+  /** Total ids on chain, before the recency cap was applied. */
+  total: number;
+}
+
+export const getMandates = async (): Promise<BoundedList<Mandate>> => {
+  const allIds = await listMandateIds();
+  const ids = recent(allIds, MAX_DASHBOARD_MANDATES);
   const records = await mapWithConcurrency(ids, READ_CONCURRENCY, (id) => getMandate(id));
-  return records.filter((record): record is Mandate => record !== null);
+  return { records: records.filter((r): r is Mandate => r !== null), total: allIds.length };
 };
 
-export const getProposals = async (): Promise<Proposal[]> => {
-  const ids = await listProposalIds();
+export const getProposals = async (): Promise<BoundedList<Proposal>> => {
+  const allIds = await listProposalIds();
+  const ids = recent(allIds, MAX_DASHBOARD_PROPOSALS);
   const records = await mapWithConcurrency(ids, READ_CONCURRENCY, (id) => getProposal(id));
-  return records.filter((record): record is Proposal => record !== null);
+  return { records: records.filter((r): r is Proposal => r !== null), total: allIds.length };
 };
 
 // --------------------------------------------------------------------------- writes
