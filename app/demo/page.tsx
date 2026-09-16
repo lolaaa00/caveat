@@ -46,7 +46,11 @@ export default function DemoMode() {
   const connected = wallet.status === 'ready' && Boolean(address);
   const resolvedSource = source.trim() || evidenceUrl(EVIDENCE_PATH);
   const placeholderSource = source.trim() || (mounted ? evidenceUrl(EVIDENCE_PATH) : EVIDENCE_PATH);
-  const reachable = source.trim() ? source.trim().startsWith('https://') : isEvidenceReachable();
+  // Same SSR-vs-client mismatch as placeholderSource above: isEvidenceReachable() also
+  // resolves window.location.origin, so it must stay gated behind `mounted` too — this
+  // value toggles an entire conditional block, not just text, so an unguarded mismatch
+  // here previously discarded and fully re-rendered the whole page (React error #418).
+  const reachable = source.trim() ? source.trim().startsWith('https://') : mounted && isEvidenceReachable();
 
   const prepare = async () => {
     if (!address) return;

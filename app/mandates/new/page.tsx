@@ -154,7 +154,7 @@ export default function NewMandate() {
                 <span className="field-k">Approved source</span>
                 <input value={source} onChange={(event) => setSource(event.target.value)} placeholder={placeholderSource} className="input" />
               </label>
-              {!isEvidenceReachable() && !source.trim() ? (
+              {mounted && !isEvidenceReachable() && !source.trim() ? (
                 <p style={{ fontSize: '0.72rem', color: 'var(--color-amber)', lineHeight: 1.5 }}>
                   This origin is not publicly reachable, so GenLayer validators cannot fetch it.
                   Set NEXT_PUBLIC_EVIDENCE_BASE_URL to a deployed URL, or paste a public https
