@@ -14,6 +14,7 @@ import {
 } from '@/lib/fixtures/scenarios';
 import { isBusy } from '@/lib/types';
 import type { Proposal } from '@/lib/types';
+import { explorerTx } from '@/lib/config';
 import { useTx } from '@/lib/wallet/useTx';
 import { useWallet } from '@/lib/wallet/useWallet';
 import { skinFor, skinVars } from '@/lib/ui/verdict';
@@ -23,6 +24,42 @@ import { TxBanner } from '@/components/ui/TxBanner';
 
 const EXPECT = { a: 'RECONFIRM', b: 'EXECUTE', c: 'BLOCK' } as const;
 const VERDICT_TONE = { EXECUTE: 'lime', RECONFIRM: 'amber', BLOCK: 'crimson' } as const;
+
+/**
+ * A completed, real on-chain run — not this session's live state. Values copied verbatim
+ * from artifacts/e2e.studio_devnet.json (source of truth; re-verify there before editing
+ * this). Shown so a visitor without a connected wallet can see genuine proof immediately,
+ * instead of three empty "no verdict yet" cards. Never presented as current contract
+ * state — every entry is explicitly dated and links to its own explorer transaction.
+ */
+const PROVEN_RESULTS = {
+  mandateId: 'MND-0012',
+  ranAt: '2026-09-15T21:03:34Z',
+  contract: '0x0B063A6Fb5aFA78bc8C1F9C77abf73cb5Ff7Dd14',
+  rows: [
+    {
+      key: 'a' as const,
+      name: 'A · Context drift',
+      proposal: 'CAV-0014',
+      verdict: 'RECONFIRM' as const,
+      tx: '0xc2f522fbda84b719ecfc8e685b3c6f1aa57da91601bfc4b4dfc16cd16509d93f',
+    },
+    {
+      key: 'b' as const,
+      name: 'B · Intent still satisfied',
+      proposal: 'CAV-0015',
+      verdict: 'EXECUTE' as const,
+      tx: '0x37ac4e365ccb88f85d2c84bd7fddd067d691a0d02e484b97fef67f2b5c3ec92e',
+    },
+    {
+      key: 'c' as const,
+      name: 'C · Explicit prohibition',
+      proposal: 'CAV-0018',
+      verdict: 'BLOCK' as const,
+      tx: '0xb3c83c9c66b814138273cd8e6118c84c86a400e8c2fd706d34080378e7e1f55b',
+    },
+  ],
+};
 
 /**
  * Demo mode. The fixtures supply the mandate wording, the proposed actions and which
@@ -116,7 +153,55 @@ export default function DemoMode() {
         the validators read.
       </p>
 
-      <div className="demo-bar" style={{ marginBottom: '2rem' }}>
+      <Reveal>
+        <Panel title="Proven live results · no wallet needed">
+          <p style={{ fontSize: '0.78rem', color: 'var(--color-muted)', lineHeight: 1.6, marginBottom: '1rem' }}>
+            A completed run of all three scenarios from one mandate, on the currently
+            deployed contract — real validators, real evidence fetch, real consensus. This
+            is historical proof, not this page's live state: run the scenarios below
+            yourself with a connected wallet for a fresh instance of the same outcomes.
+          </p>
+          <div style={{ display: 'grid', gap: '0.625rem' }}>
+            {PROVEN_RESULTS.rows.map((row) => (
+              <div
+                key={row.key}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '0.5rem',
+                  padding: '0.625rem 0.75rem',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '0.5rem',
+                }}
+              >
+                <span style={{ fontSize: '0.8125rem' }}>
+                  {row.name} <span className="hash">{row.proposal}</span>
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                  <Tag tone={VERDICT_TONE[row.verdict]}>{row.verdict}</Tag>
+                  <a
+                    href={explorerTx(row.tx)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="hash"
+                    style={{ color: 'var(--color-crimson-hot)' }}
+                  >
+                    view tx &rarr;
+                  </a>
+                </span>
+              </div>
+            ))}
+          </div>
+          <p style={{ marginTop: '0.875rem', fontSize: '0.7rem', color: 'var(--color-faint)' }}>
+            Mandate {PROVEN_RESULTS.mandateId} · run {PROVEN_RESULTS.ranAt} · contract{' '}
+            <span className="hash">{PROVEN_RESULTS.contract}</span>
+          </p>
+        </Panel>
+      </Reveal>
+
+      <div className="demo-bar" style={{ marginBottom: '2rem', marginTop: '2rem' }}>
         <span className="demo-lbl">Scenario</span>
         {SCENARIOS.map((scenario, i) => (
           <button
