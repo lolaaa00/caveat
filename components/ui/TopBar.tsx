@@ -103,7 +103,11 @@ const FaucetButton = ({ address }: { address: string }) => {
       }
     >
       <span className="wc-dot" />
-      {state === 'pending' ? 'Funding…' : state === 'error' ? 'Faucet unavailable — retry' : 'Get testnet GEN'}
+      {state === 'pending'
+        ? 'Funding…'
+        : state === 'error'
+          ? message || 'Faucet unavailable — retry'
+          : 'Get testnet GEN'}
     </button>
   );
 };
