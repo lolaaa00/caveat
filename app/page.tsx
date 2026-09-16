@@ -71,14 +71,14 @@ export default function Dashboard() {
         >
           <Metric
             label={mandatesTruncated ? `Active Mandates (recent ${mandates.length})` : 'Active Mandates'}
-            value={active.length}
+            value={loading ? '—' : active.length}
           />
           <Metric
             label={proposalsTruncated ? `Awaiting Checkpoint (recent ${proposals.length})` : 'Awaiting Checkpoint'}
-            value={pending.length}
+            value={loading ? '—' : pending.length}
           />
-          <Metric label="Reconfirmation Required" value={awaiting.length} tone="amber" />
-          <Metric label="Execution Authorized" value={authorized.length} tone="lime" />
+          <Metric label="Reconfirmation Required" value={loading ? '—' : awaiting.length} tone="amber" />
+          <Metric label="Execution Authorized" value={loading ? '—' : authorized.length} tone="lime" />
         </Reveal>
         {mandatesTruncated || proposalsTruncated ? (
           <p
@@ -111,7 +111,7 @@ export default function Dashboard() {
                 </button>
               </div>
               {loading ? (
-                <Empty>Reading from the contract…</Empty>
+                <Empty>Reading live Studio Next state — shared testnet reads may take around 30 seconds.</Empty>
               ) : mandates.length === 0 ? (
                 <Empty>No mandates yet. Create one to begin.</Empty>
               ) : (
@@ -128,7 +128,7 @@ export default function Dashboard() {
             <div className="panel">
               <div className="panel-head">Recent Decisions</div>
               {loading ? (
-                <Empty>Reading from the contract…</Empty>
+                <Empty>Reading live Studio Next state — shared testnet reads may take around 30 seconds.</Empty>
               ) : decided.length === 0 ? (
                 <Empty>No checkpoint has produced a verdict yet.</Empty>
               ) : (

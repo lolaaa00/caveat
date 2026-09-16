@@ -7,16 +7,12 @@
 
 Built on GenLayer. Deployed to Studio Next (chain 61997).
 
-## Track: Onchain Justice — pre-emptive, evidence-based rule enforcement
+## Track: Onchain Justice
 
-Agentic Commerce Infrastructure describes a domain CAVEAT can serve; Onchain Justice
-describes the mechanism it actually implements. Unlike conventional disputes between two
-opposing parties, CAVEAT applies evidence-based rule enforcement *before* an autonomous
-agent acts — protecting a principal's mandate before harm occurs, rather than adjudicating
-consequences afterward. It is a pre-emptive onchain adjudication layer for autonomous
-agents: it evaluates a proposed action against the principal's rules, current
-independently retrieved evidence, and semantic intent, then returns an enforceable
-`EXECUTE`, `RECONFIRM`, or `BLOCK` verdict.
+CAVEAT applies evidence-based rule enforcement before an autonomous agent acts. Unlike
+conventional disputes adjudicated after harm occurs, CAVEAT evaluates a proposed action
+against the principal's mandate, current independently retrieved evidence, and semantic
+intent, then returns an enforceable `EXECUTE`, `RECONFIRM`, or `BLOCK` verdict.
 
 ---
 
