@@ -52,29 +52,41 @@ export const TopBar = () => {
 };
 
 /**
- * Studio Next's own faucet, one click away. The single biggest piece of friction
- * between a first-time visitor and actually trying the live checkpoint is having no
- * testnet GEN — this removes it without sending anyone off to hunt for a faucet link.
+ * A real GEN transfer, one click away — /api/faucet signs and submits it server-side
+ * from a dedicated wallet. The single biggest piece of friction between a first-time
+ * visitor and actually trying the live checkpoint is having no testnet GEN; this removes
+ * it without sending anyone off to hunt for a faucet link. Rate-limited to one claim per
+ * address per cooldown window, enforced server-side (Redis), not by anything in the
+ * browser a visitor could just clear.
  */
 const FaucetButton = ({ address }: { address: string }) => {
   const [state, setState] = useState<'idle' | 'pending' | 'done' | 'error'>('idle');
+  const [amount, setAmount] = useState(1);
+  const [message, setMessage] = useState('');
 
   const fund = async () => {
     setState('pending');
     try {
-      await fundFromFaucet(address);
+      const { hash, amountGen } = await fundFromFaucet(address);
+      setAmount(amountGen);
+      setMessage(hash);
       setState('done');
     } catch (err) {
       console.error('Faucet error:', err);
+      setMessage(err instanceof Error ? err.message : 'Faucet request failed.');
       setState('error');
     }
   };
 
   if (state === 'done') {
     return (
-      <span className="chip-wallet ok" style={{ cursor: 'default' }} title="10 GEN added to your wallet on chain 61997 (Studio Next)">
+      <span
+        className="chip-wallet ok"
+        style={{ cursor: 'default' }}
+        title={`A real transfer of ${amount} GEN was sent to your wallet on chain 61997 (Studio Next). Tx: ${message}`}
+      >
         <span className="wc-dot" />
-        +10 GEN funded
+        +{amount} GEN funded
       </span>
     );
   }
@@ -84,10 +96,14 @@ const FaucetButton = ({ address }: { address: string }) => {
       className="chip-wallet warn"
       disabled={state === 'pending'}
       onClick={() => void fund()}
-      title="Fund this wallet with testnet GEN from the Studio Next faucet"
+      title={
+        state === 'error'
+          ? message
+          : 'Get a real, one-time GEN transfer from the CAVEAT faucet wallet on Studio Next'
+      }
     >
       <span className="wc-dot" />
-      {state === 'pending' ? 'Funding…' : state === 'error' ? 'Faucet failed, retry' : 'Get testnet GEN'}
+      {state === 'pending' ? 'Funding…' : state === 'error' ? 'Faucet unavailable — retry' : 'Get testnet GEN'}
     </button>
   );
 };
