@@ -47,6 +47,23 @@ Original Mandate  +  Proposed Action  +  Current Independently Fetched Evidence
 `INCONCLUSIVE` exists internally and surfaces as `RECONFIRM`, so an unverifiable world can
 never look like an approval.
 
+## Try CAVEAT
+
+**Live app:** [caveat-xi.vercel.app](https://caveat-xi.vercel.app)
+**Network:** GenLayer Studio Next · Chain 61997
+**Contract:** [`0x0B063A6Fb5aFA78bc8C1F9C77abf73cb5Ff7Dd14`](https://explorer-studio-dev.genlayer.com/address/0x0B063A6Fb5aFA78bc8C1F9C77abf73cb5Ff7Dd14)
+
+Connect a wallet, switch to chain 61997, and open `/demo` to run one mandate through
+three outcomes:
+
+- **RECONFIRM** — the agent still has permission, but current context breaks the
+  mandate's purpose.
+- **EXECUTE** — current context still satisfies the mandate.
+- **BLOCK** — an explicit deterministic constraint is violated.
+
+Every verdict shown is read back from the deployed Intelligent Contract. The frontend
+never computes one — see [Deployment](#deployment) below for the transaction proof.
+
 ## Why GenLayer
 
 The checkpoint needs four properties at once, and no ordinary chain has any of them:
@@ -135,9 +152,12 @@ npm install
 /usr/local/opt/python@3.12/bin/python3.12 -m venv .venv    # or python3.12 -m venv .venv
 .venv/bin/pip install -r requirements.txt
 
-npm install -g genlayer@0.40.0-rc.3
 cp .env.example .env
 ```
+
+`npm install` already pulled in `genlayer@0.40.0-rc.3` as a local devDependency (see
+`BUILD_DECISIONS.md`) — no global install needed. Run it via `npx genlayer ...` if you
+want the CLI directly; nothing in the commands below requires it.
 
 Check it took: `.venv/bin/python -V` should print 3.11 or newer.
 
@@ -145,7 +165,7 @@ Everything below works with no keys and no accounts. Testnet keys are generated
 automatically on first deploy and written to `.env` (gitignored).
 
 ```bash
-npm run test:contract   # 60 direct tests, no network, ~40s (uses .venv)
+npm run test:contract   # 130 direct tests, no network, ~2 min (uses .venv)
 npm run lint:contract   # genvm-lint check + validate + typecheck
 npm run deploy          # deploy to Studio Next, write .env + artifacts
 npm run dev             # console on http://localhost:3000
@@ -176,7 +196,7 @@ Setup above for why.
 | `test/direct/test_hostile_input.py` | 6 | Prompt injection in payload, action summary, and via evidence source |
 | `test/direct/test_input_bounds.py` | 38 | Field length caps, decimal precision, canonical digests, **URL safety** (private IPs, credentials, fragments, non-https), sources/questions consistency, no-evidence (pure-constraint) mandates reaching a verdict |
 | `test/direct/test_authorization_artifact.py` | 6 | Authorization artifact correctness and binding |
-| `test/integration/test_studio_next.py` | — | Same behaviour on chain 61997 |
+| `test/integration/test_studio_next.py` | 5 | Same behaviour on chain 61997 |
 
 ## Environment variables
 
@@ -339,7 +359,7 @@ lib/settlement/                the payment leg — client-side, outside the cont
 scripts/deploy.py              deploy to Studio Next + write evidence artifacts
 scripts/e2e.py                 full lifecycle on chain
 scripts/mcp_server.py          MCP server — the contract, exposed to any agent
-test/direct/                   60 in-process tests
+test/direct/                   130 in-process tests
 test/integration/              5 tests on chain 61997
 public/evidence/               first-party evidence pages for the demo
 docs/                          architecture, threat model, demo script
