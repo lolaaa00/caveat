@@ -1,5 +1,9 @@
 # Demo script (~90 seconds)
 
+▶️ [Watch the recorded demo](https://x.com/Lolaaa_00_/status/2100574626615009493) —
+`RECONFIRM`, `EXECUTE`, and `BLOCK` through real transactions on GenLayer Studio Next,
+chain `61997`.
+
 ## Setup before you present
 
 **Live and already deployed:** the console is at

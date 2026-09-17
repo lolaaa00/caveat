@@ -71,6 +71,13 @@ three outcomes:
 Every verdict shown is read back from the deployed Intelligent Contract. The frontend
 never computes one — see [Deployment](#deployment) below for the transaction proof.
 
+## Demo video
+
+▶️ [Watch the CAVEAT demo](https://x.com/Lolaaa_00_/status/2100574626615009493)
+
+The video demonstrates `RECONFIRM`, `EXECUTE`, and `BLOCK` through real transactions on
+GenLayer Studio Next, chain `61997`.
+
 ## Why GenLayer
 
 The checkpoint needs four properties at once, and no ordinary chain has any of them:
