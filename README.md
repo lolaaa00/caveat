@@ -119,11 +119,20 @@ none of them; it reads state and submits signed transactions.
 | Contract | [`0x0B063A6Fb5aFA78bc8C1F9C77abf73cb5Ff7Dd14`](https://explorer-studio-dev.genlayer.com/address/0x0B063A6Fb5aFA78bc8C1F9C77abf73cb5Ff7Dd14) |
 | Deployment tx | [`0x587c5e73…8a1302`](https://explorer-studio-dev.genlayer.com/tx/0x587c5e7378646630e7c41d4f470b2ecdd42c058f48caa760f9b1e660b58a1302) |
 | Consensus / execution | `MAJORITY_AGREE` / `SUCCESS` |
-| Source commit | `3ae7a11` (this repo, `main`) |
+| Source SHA-256 | `contracts/caveat.py` = `6301745c58a1c30f645b1d24e0d50f37fdb05f1c5b78187c69ac245d1802597d` — reproduce with `python3 scripts/verify_source_hash.py` |
 | Runtime | `py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng` (pinned, verified against this exact deployment) |
 | Deployed via | `genlayer` CLI `0.40.0-rc.3` (native `genlayer deploy`), local devDependency — not global |
-| Schema parity | **matches** local source at the commit above — checked live via `get_contract_schema`/`get_contract_schema_for_code`, recorded in the manifest |
+| Schema parity | **matches** — checked live at deploy time via `get_contract_schema`/`get_contract_schema_for_code` against the deployed contract's own on-chain schema, recorded in the manifest |
 | Evidence | `artifacts/deployment.studio_devnet.json`, `artifacts/e2e.studio_devnet.json` |
+
+The manifest originally recorded a `source_commit`
+(`3ae7a11a780833af716cf97874c4bf44f2e30d41`) that is no longer reachable in this
+repository's history: a later commit-message rewrite (stripping AI co-authorship
+trailers) changed every commit hash while leaving file trees byte-identical, orphaning
+the original commit object. Rather than assert which current commit "is" the deployment
+commit on the strength of a coincidentally-matching message, the manifest now records
+the deployed contract's exact **SHA-256** and the schema parity already checked live
+against the chain — both independently reproducible, neither resting on commit history.
 
 Studio Next is a resettable preview network. If the deployment has been reset, redeploy
 with `npm run deploy` — it takes about a minute and writes fresh evidence artifacts.

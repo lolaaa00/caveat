@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:contract": ".venv/bin/python -m pytest test/direct -q",
     "test:integration": ".venv/bin/gltest --network studio_devnet test/integration",
@@ -27,6 +27,7 @@
     "@types/node": "^26.5.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.7",
+    "eslint-config-next": "^15.5.25",
     "genlayer": "^0.40.0-rc.3",
     "tailwindcss": "^4.3.3",
     "typescript": "^5.9.3"

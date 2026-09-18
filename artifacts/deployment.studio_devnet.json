@@ -8,6 +8,8 @@
   "explorer_contract": "https://explorer-studio-dev.genlayer.com/address/0x0B063A6Fb5aFA78bc8C1F9C77abf73cb5Ff7Dd14",
   "explorer_tx": "https://explorer-studio-dev.genlayer.com/tx/0x587c5e7378646630e7c41d4f470b2ecdd42c058f48caa760f9b1e660b58a1302",
   "source_commit": "3ae7a11a780833af716cf97874c4bf44f2e30d41",
+  "source_commit_note": "This commit is no longer reachable in the repository's history: a later commit-message rewrite (stripping AI co-authorship trailers, run 2026-09-16) changed every commit hash while leaving file trees byte-identical. Do not treat any single current commit as authoritative for 'the deployment commit' on that basis alone. The claim that IS independently verifiable is source_sha256 below, plus schema_parity (checked live against the deployed contract's own on-chain schema at deploy time) — see scripts/verify_source_hash.py.",
+  "source_sha256": "6301745c58a1c30f645b1d24e0d50f37fdb05f1c5b78187c69ac245d1802597d",
   "runtime": "py-genlayer:5jycge4q8k23462jtb0b9fyey1s9qz928sz2nbrd9mg4sxqg2qng",
   "schema_parity": {
     "matches": true,

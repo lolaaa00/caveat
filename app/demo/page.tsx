@@ -158,7 +158,7 @@ export default function DemoMode() {
           <p style={{ fontSize: '0.78rem', color: 'var(--color-muted)', lineHeight: 1.6, marginBottom: '1rem' }}>
             A completed run of all three scenarios from one mandate, on the currently
             deployed contract — real validators, real evidence fetch, real consensus. This
-            is historical proof, not this page's live state: run the scenarios below
+            is historical proof, not this page&apos;s live state: run the scenarios below
             yourself with a connected wallet for a fresh instance of the same outcomes.
           </p>
           <div style={{ display: 'grid', gap: '0.625rem' }}>
